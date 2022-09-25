@@ -7,7 +7,7 @@ from mmcv.runner import auto_fp16
 
 from mmedit.core import psnr, ssim, tensor2img
 from ..base import BaseModel
-from ..builder import build_backbone, build_loss
+from ..builder import build_backbone, build_component, build_loss
 from ..registry import MODELS
 
 
