@@ -2,6 +2,8 @@ import math
 import random
 import torch
 from basicsr.utils.registry import ARCH_REGISTRY
+from mmedit.models.registry import BACKBONES
+
 from torch import nn
 from torch.nn import functional as F
 
@@ -149,7 +151,7 @@ class ResBlock(nn.Module):
         return out
 
 
-@ARCH_REGISTRY.register()
+@BACKBONES.register_module()
 class GFPGANv1Clean(nn.Module):
     """The GFPGAN architecture: Unet + StyleGAN2 decoder with SFT.
 

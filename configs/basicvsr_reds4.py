@@ -9,22 +9,23 @@ model = dict(
         num_blocks=30,
         spynet_pretrained='https://download.openmmlab.com/mmediting/restorers/'
         'basicvsr/spynet_20210409-c6c1bd09.pth',
-        gfpgan=dict(
+    ),
+    gfpgan=dict(
             # type='GFPGANv1',
-            out_size=512,
+            out_size=256,
             num_style_feat=512,
-            channel_multiplier=2,
-            # resample_kernel=[1, 3, 3, 1],
+            channel_multiplier=1,
+            resample_kernel=[1, 3, 3, 1],
             decoder_load_path="experiments/pretrained_models/StyleGAN2_512_Cmul1_FFHQ_B12G4_scratch_800k.pth",
-            pretrained="/home/VideoRestoration/VideoRestoration/GFPGAN/experiments/pretrained_models/GFPGANv1.3.pth",
+            # pretrained="/home/VideoRestoration/VideoRestoration/GFPGAN/experiments/pretrained_models/GFPGANv1.3.pth",
+            pretrained= "/home/VideoRestoration/VideoRestoration/GFPGAN/experiments/train_GFPGANv1_512/models/net_g_220000.pth",
             fix_decoder=True,
             num_mlp=8,
-            # lr_mlp=0.01,
+            lr_mlp=0.01,
             input_is_latent=True,
             different_w=True,
             narrow=1,
             sft_half=True),
-    ),
     pixel_loss=dict(type='CharbonnierLoss', loss_weight=1.0, reduction='mean'))
 
 
@@ -95,7 +96,7 @@ demo_pipeline = [
 
 data = dict(
     workers_per_gpu=1,
-    train_dataloader=dict(samples_per_gpu=2, drop_last=True),  # 2 gpus
+    train_dataloader=dict(samples_per_gpu=1, drop_last=True),  # 2 gpus
     val_dataloader=dict(samples_per_gpu=1),
     test_dataloader=dict(samples_per_gpu=1, workers_per_gpu=1),
 
@@ -107,7 +108,7 @@ data = dict(
             type=train_dataset_type,
             lq_folder='/home/VideoRestoration/VideoRestoration/dataset/REDS/train/train_sharp_bicubic/X4',
             gt_folder='/home/VideoRestoration/VideoRestoration/dataset/REDS/train/train_sharp',
-            num_input_frames=15,
+            num_input_frames=5,
             pipeline=train_pipeline,
             scale=4,
             val_partition='REDS4',

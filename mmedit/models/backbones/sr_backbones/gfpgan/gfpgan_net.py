@@ -4,7 +4,7 @@ import torch
 from basicsr.archs.stylegan2_arch import (ConvLayer, EqualConv2d, EqualLinear, ResBlock, ScaledLeakyReLU,
                                           StyleGAN2Generator)
 from basicsr.ops.fused_act import FusedLeakyReLU
-from mmedit.models.registry import COMPONENTS
+from mmedit.models.registry import BACKBONES
 from torch import nn
 from torch.nn import functional as F
 
@@ -217,7 +217,7 @@ class ResUpBlock(nn.Module):
         return out
 
 
-@COMPONENTS.register_module()
+@BACKBONES.register_module()
 class GFPGANv1(nn.Module):
     """The GFPGAN architecture: Unet + StyleGAN2 decoder with SFT.
 

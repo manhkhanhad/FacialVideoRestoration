@@ -9,7 +9,8 @@ from mmedit.core import psnr, ssim, tensor2img
 from ..base import BaseModel
 from ..builder import build_backbone, build_component, build_loss
 from ..registry import MODELS
-
+from ..backbones.sr_backbones.gfpgan.gfpganv1_clean_arch import GFPGANv1Clean
+from ..backbones.sr_backbones.gfpgan.gfpgan_net import GFPGANv1
 
 @MODELS.register_module()
 class BasicRestorer(BaseModel):
@@ -32,6 +33,7 @@ class BasicRestorer(BaseModel):
 
     def __init__(self,
                  generator,
+                 gfpgan,
                  pixel_loss,
                  train_cfg=None,
                  test_cfg=None,
@@ -47,6 +49,18 @@ class BasicRestorer(BaseModel):
         # generator
         self.generator = build_backbone(generator)
         self.init_weights(pretrained)
+        
+        # self.gfpgan = build_backbone(gfpgan)
+        self.gfpgan = GFPGANv1(**gfpgan)
+        # breakpoint()
+        # for k,v in self.gfpgan.named_parameters(): 
+        #     print(k)
+        # exit()
+
+        # self.gfpgan.eval()
+        # for k in self.gfpgan.parameters():
+        #     k.requires_grad = False
+
 
         # loss
         self.pixel_loss = build_loss(pixel_loss)
@@ -88,6 +102,9 @@ class BasicRestorer(BaseModel):
         """
         losses = dict()
         output = self.generator(lq)
+        output, _ = self.gfpgan(output.flatten(0,1), return_rgb=False)
+        output = output.reshape(gt.shape)
+
         loss_pix = self.pixel_loss(output, gt)
         losses['loss_pix'] = loss_pix
         outputs = dict(

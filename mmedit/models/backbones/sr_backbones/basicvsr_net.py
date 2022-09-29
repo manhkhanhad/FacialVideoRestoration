@@ -30,7 +30,7 @@ class BasicVSRNet(nn.Module):
             Default: None.
     """
 
-    def __init__(self, mid_channels=64, num_blocks=30, spynet_pretrained=None, gfpgan=None):
+    def __init__(self, mid_channels=64, num_blocks=30, spynet_pretrained=None):
 
         super().__init__()
 
@@ -62,7 +62,7 @@ class BasicVSRNet(nn.Module):
 
         # gfpgan
         # self.gfpgan = build_component(gfpgan)
-        self.gfpgan = GFPGANv1Clean(**gfpgan)
+        # self.gfpgan = GFPGANv1Clean(**gfpgan)
 
     def check_if_mirror_extended(self, lrs):
         """Check whether the input is a mirror-extended sequence.
@@ -118,7 +118,7 @@ class BasicVSRNet(nn.Module):
         Returns:
             Tensor: Output HR sequence with shape (n, t, c, 4h, 4w).
         """
-        lrs = torch.rand(1, 5, 3, 256, 256).to('cuda')
+
         n, t, c, h, w = lrs.size()
         assert h >= 64 and w >= 64, (
             'The height and width of inputs should be at least 64, '
@@ -161,16 +161,13 @@ class BasicVSRNet(nn.Module):
             # upsampling given the backward and forward features
             out = torch.cat([outputs[i], feat_prop], dim=1)
             out = self.lrelu(self.fusion(out))
-            # out = self.lrelu(self.upsample1(out))
-            # out = self.lrelu(self.upsample2(out))
-            # out = self.lrelu(self.conv_hr(out))
-            # out = self.conv_last(out)
-            # base = self.img_upsample(lr_curr)
-            # out += base
+            out = self.lrelu(self.upsample1(out))
+            out = self.lrelu(self.upsample2(out))
+            out = self.lrelu(self.conv_hr(out))
+            out = self.conv_last(out)
+            base = self.img_upsample(lr_curr)
+            out += base
             outputs[i] = out
-
-        # breakpoint()
-        # self.gfpgan(outputs[0])
 
         return torch.stack(outputs, dim=1)
 
