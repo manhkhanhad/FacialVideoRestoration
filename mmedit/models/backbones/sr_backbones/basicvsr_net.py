@@ -9,9 +9,10 @@ from mmedit.models.common import (PixelShufflePack, ResidualBlockNoBN,
                                   flow_warp, make_layer)
 from mmedit.models.registry import BACKBONES
 from mmedit.utils import get_root_logger
+
 from .gfpgan.gfpgan_net import GFPGANv1
 from .gfpgan.gfpganv1_clean_arch import GFPGANv1Clean
-
+from basicsr.archs.stylegan2_arch import ConvLayer
 @BACKBONES.register_module()
 class BasicVSRNet(nn.Module):
     """BasicVSR network structure for video super-resolution.
@@ -30,7 +31,7 @@ class BasicVSRNet(nn.Module):
             Default: None.
     """
 
-    def __init__(self, mid_channels=64, num_blocks=30, spynet_pretrained=None):
+    def __init__(self, mid_channels=64, num_blocks=30, spynet_pretrained=None, gfpgan=None):
 
         super().__init__()
 
@@ -46,8 +47,9 @@ class BasicVSRNet(nn.Module):
             mid_channels + 3, mid_channels, num_blocks)
 
         # upsample
-        self.fusion = nn.Conv2d(
-            mid_channels * 2, mid_channels, 1, 1, 0, bias=True)
+        # self.fusion = nn.Conv2d(
+        #     mid_channels * 2, mid_channels, 1, 1, 0, bias=True)
+        self.fusion = ConvLayer(mid_channels * 2, mid_channels, 1, bias=True, activate=True)
         self.upsample1 = PixelShufflePack(
             mid_channels, mid_channels, 2, upsample_kernel=3)
         self.upsample2 = PixelShufflePack(
@@ -62,7 +64,7 @@ class BasicVSRNet(nn.Module):
 
         # gfpgan
         # self.gfpgan = build_component(gfpgan)
-        # self.gfpgan = GFPGANv1Clean(**gfpgan)
+        self.gfpgan = GFPGANv1(**gfpgan)
 
     def check_if_mirror_extended(self, lrs):
         """Check whether the input is a mirror-extended sequence.
@@ -160,16 +162,24 @@ class BasicVSRNet(nn.Module):
 
             # upsampling given the backward and forward features
             out = torch.cat([outputs[i], feat_prop], dim=1)
-            out = self.lrelu(self.fusion(out))
-            out = self.lrelu(self.upsample1(out))
-            out = self.lrelu(self.upsample2(out))
-            out = self.lrelu(self.conv_hr(out))
-            out = self.conv_last(out)
-            base = self.img_upsample(lr_curr)
-            out += base
+            out = self.fusion(out)
+            # out = self.lrelu(self.fusion(out))
+            # out = self.lrelu(self.upsample1(out))
+            # out = self.lrelu(self.upsample2(out))
+            # out = self.lrelu(self.conv_hr(out))
+            # out = self.conv_last(out)
+            # base = self.img_upsample(lr_curr)
+            # out += base
             outputs[i] = out
 
-        return torch.stack(outputs, dim=1)
+        # outputs = []
+        # for i in range(5):
+        #     outputs.append(torch.rand(1,32,256,256))
+        output, _ = self.gfpgan(torch.cat(outputs,0), return_rgb=False)
+        output = output.reshape(lrs.size())
+
+        # return torch.stack(outputs, dim=1)
+        return output
 
     def init_weights(self, pretrained=None, strict=True):
         """Init weights for models.

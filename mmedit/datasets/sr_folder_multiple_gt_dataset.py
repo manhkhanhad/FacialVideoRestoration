@@ -116,5 +116,4 @@ class SRFolderMultipleGTDataset(BaseSRDataset):
                     key=sequence.replace(f'{self.lq_folder}{os.sep}', ''),
                     num_input_frames=num_input_frames,
                     sequence_length=sequence_length))
-
         return data_infos

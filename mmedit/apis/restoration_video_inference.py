@@ -54,12 +54,14 @@ def restoration_video_inference(model,
     device = next(model.parameters()).device  # model device
 
     # build the data pipeline
-    if model.cfg.get('demo_pipeline', None):
+    if model.cfg.get('demo_pipelinex', None):
         test_pipeline = model.cfg.demo_pipeline
     elif model.cfg.get('test_pipeline', None):
         test_pipeline = model.cfg.test_pipeline
     else:
         test_pipeline = model.cfg.val_pipeline
+
+    # breakpoint ()
 
     # check if the input is a video
     file_extension = osp.splitext(img_dir)[1]
@@ -92,19 +94,23 @@ def restoration_video_inference(model,
         # prepare data
         sequence_length = len(glob.glob(osp.join(img_dir, '*')))
         img_dir_split = re.split(r'[\\/]', img_dir)
-        key = img_dir_split[-1]
-        lq_folder = reduce(osp.join, img_dir_split[:-1])
+        # key = img_dir_split[-1]
+        # lq_folder = "/" + reduce(osp.join, img_dir_split[:-1])
+        key = img_dir
+        lq_folder = ""
         data = dict(
             lq_path=lq_folder,
             gt_path='',
             key=key,
-            sequence_length=sequence_length)
+            sequence_length=30)
+        print ("hehe ", data)
 
     # compose the pipeline
     test_pipeline = Compose(test_pipeline)
     data = test_pipeline(data)
     data = data['lq'].unsqueeze(0)  # in cpu
 
+    print (data.shape)
     # forward the model
     with torch.no_grad():
         if window_size > 0:  # sliding window framework

@@ -148,10 +148,13 @@ class Resize:
                             new_w)
             self.scale = (new_w, new_h)
         for key, out_key in zip(self.keys, self.output_keys):
-            results[out_key] = self._resize(results[key])
-            if len(results[out_key].shape) == 2:
-                results[out_key] = np.expand_dims(results[out_key], axis=2)
-
+            batch_out = []
+            for img in results[key]:
+                batch_out.append(self._resize(img))
+            results[out_key] = batch_out
+            # results[out_key] = self._resize(results[key])
+            # if len(results[out_key].shape) == 2:
+            #     results[out_key] = np.expand_dims(results[out_key], axis=2)
         results['scale_factor'] = self.scale_factor
         results['keep_ratio'] = self.keep_ratio
         results['interpolation'] = self.interpolation

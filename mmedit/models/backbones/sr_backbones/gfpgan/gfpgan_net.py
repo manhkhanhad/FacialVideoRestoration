@@ -376,7 +376,9 @@ class GFPGANv1(nn.Module):
         out_rgbs = []
 
         # encoder
-        feat = self.conv_body_first(x)
+        # feat = self.conv_body_first(x) #Use output of BasicVSR
+        feat = x
+
         for i in range(self.log_size - 2):
             feat = self.conv_body_down[i](feat)
             unet_skips.insert(0, feat)

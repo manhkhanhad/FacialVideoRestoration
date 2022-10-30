@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
-CONFIG=$1
-CHECKPOINT=$2
-GPUS=$3
+CONFIG="/home/ldtuan/VideoRestoration/BasicVSR_PlusPlus/configs/basicvsr_reds4.py"
+CHECKPOINT="/home/ldtuan/VideoRestoration/BasicVSR_PlusPlus/work_dirs/BasicVSR_GFPGAN/latest.pth"
+GPUS=1
 NNODES=${NNODES:-1}
 NODE_RANK=${NODE_RANK:-0}
 PORT=${PORT:-29500}
 MASTER_ADDR=${MASTER_ADDR:-"127.0.0.1"}
 
 PYTHONPATH="$(dirname $0)/..":$PYTHONPATH \
-python -m torch.distributed.launch \
+BASICSR_JIT=True python -m torch.distributed.launch \
     --nnodes=$NNODES \
     --node_rank=$NODE_RANK \
     --master_addr=$MASTER_ADDR \
@@ -19,4 +19,5 @@ python -m torch.distributed.launch \
     $CONFIG \
     $CHECKPOINT \
     --launcher pytorch \
+    --save-path /home/ldtuan/VideoRestoration/BasicVSR_PlusPlus/work_dirs/BasicVSR_GFPGAN/test_result \
     ${@:4}

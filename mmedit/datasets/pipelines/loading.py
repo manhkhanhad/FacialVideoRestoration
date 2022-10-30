@@ -64,6 +64,7 @@ class LoadImageFromFile:
             dict: A dict containing the processed data and information.
         """
         filepath = str(results[f'{self.key}_path'])
+        print(filepath)
         if self.file_client is None:
             self.file_client = FileClient(self.io_backend, **self.kwargs)
         if self.use_cache:
@@ -152,7 +153,6 @@ class LoadImageFromFileList(LoadImageFromFile):
         if not isinstance(filepaths, list):
             raise TypeError(
                 f'filepath should be list, but got {type(filepaths)}')
-
         filepaths = [str(v) for v in filepaths]
 
         imgs = []

@@ -32,19 +32,20 @@ class BasicVSR(BasicRestorer):
 
     def __init__(self,
                  generator,
-                 gfpgan,
+                #  gfpgan,
                  pixel_loss,
                  ensemble=None,
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
-        super().__init__(generator, gfpgan, pixel_loss, train_cfg, test_cfg,
+        super().__init__(generator, pixel_loss, train_cfg, test_cfg,
                          pretrained)
 
         # fix pre-trained networks
         self.fix_iter = train_cfg.get('fix_iter', 0) if train_cfg else 0
+        self.gfp_fix_iter = train_cfg.get('gfp_fix_iter', 0) if train_cfg else 0
         self.is_weight_fixed = False
-
+        self.is_gfp_weight_fixed = False
         # count training steps
         self.register_buffer('step_counter', torch.zeros(1))
 
@@ -99,7 +100,24 @@ class BasicVSR(BasicRestorer):
                         v.requires_grad_(False)
         elif self.step_counter == self.fix_iter:
             # train all the parameters
-            self.generator.requires_grad_(True)
+            for k, v in self.generator.named_parameters():
+                if 'spynet' in k or 'edvr' in k:
+                    v.requires_grad_(True)
+
+        #Fix GFPGAM at the beginning
+        if self.step_counter < self.gfp_fix_iter:
+            if not self.is_gfp_weight_fixed:
+                self.is_gfp_weight_fixed = True
+                for k, v in self.generator.named_parameters():
+                    if 'gfp' in k:
+                        v.requires_grad_(False)
+        elif self.step_counter >= self.fix_iter:
+            # train all the parameters
+            # self.generator.requires_grad_(True)
+            for k, v in self.generator.named_parameters():
+                if 'gfp' in k:
+                    v.requires_grad_(True)
+
 
         outputs = self(**data_batch, test_mode=False)
         loss, log_vars = self.parse_losses(outputs.pop('losses'))

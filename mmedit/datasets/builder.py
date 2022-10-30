@@ -88,7 +88,7 @@ def build_dataloader(dataset,
                      shuffle=True,
                      seed=None,
                      drop_last=False,
-                     pin_memory=True,
+                     pin_memory=False,
                      persistent_workers=True,
                      **kwargs):
     """Build PyTorch DataLoader.
@@ -146,7 +146,7 @@ def build_dataloader(dataset,
 
     if version.parse(torch.__version__) >= version.parse('1.7.0'):
         kwargs['persistent_workers'] = persistent_workers
-
+    
     data_loader = DataLoader(
         dataset,
         batch_size=batch_size,

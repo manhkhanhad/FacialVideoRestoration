@@ -33,7 +33,7 @@ class BasicRestorer(BaseModel):
 
     def __init__(self,
                  generator,
-                 gfpgan,
+                #  gfpgan,
                  pixel_loss,
                  train_cfg=None,
                  test_cfg=None,
@@ -51,7 +51,7 @@ class BasicRestorer(BaseModel):
         self.init_weights(pretrained)
         
         # self.gfpgan = build_backbone(gfpgan)
-        self.gfpgan = GFPGANv1(**gfpgan)
+        # self.gfpgan = GFPGANv1(**gfpgan)
         # breakpoint()
         # for k,v in self.gfpgan.named_parameters(): 
         #     print(k)
@@ -102,8 +102,8 @@ class BasicRestorer(BaseModel):
         """
         losses = dict()
         output = self.generator(lq)
-        output, _ = self.gfpgan(output.flatten(0,1), return_rgb=False)
-        output = output.reshape(gt.shape)
+        # output, _ = self.gfpgan(output.flatten(0,1), return_rgb=False)
+        # output = output.reshape(gt.shape)
 
         loss_pix = self.pixel_loss(output, gt)
         losses['loss_pix'] = loss_pix
