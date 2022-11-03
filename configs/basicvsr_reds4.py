@@ -25,10 +25,52 @@ model = dict(
                 narrow=1,
                 sft_half=True)
     ),
-    pixel_loss=dict(type='CharbonnierLoss', loss_weight=1.0, reduction='mean'))
+    discriminator=dict(
+        network_d=dict(
+            type='StyleGAN2Discriminator',
+            out_size=256,
+            channel_multiplier=1,
+            resample_kernel=[1, 3, 3, 1],
+            pretrained="/home/ldtuan/VideoRestoration/GFPGAN/experiments/finetune2_GFPGAN_TalkingHead/models/net_d_510000.pth"
+        ),
+        network_d_left_eye=dict(
+            type='FacialComponentDiscriminator',
+            pretrained=None,
+        ),
+        network_d_right_eye=dict(
+            type='FacialComponentDiscriminator',
+            pretrained=None,
+        ),network_d_mouth=dict(
+            type='FacialComponentDiscriminator',
+            pretrained=None,
+        ),
+        network_identity=dict(
+            type="ResNetArcFace",
+            block="IRBlock",
+            layers=[2, 2, 2, 2],
+            use_se=False,
+            pretrained="/home/ldtuan/VideoRestoration/GFPGAN/experiments/pretrained_models/arcface_resnet18.pth"
+        )
+    ),
+    pixel_loss=dict(type='CharbonnierLoss', loss_weight=0.1, reduction='mean'),
+    l1_loss=dict(type='L1Loss', loss_weight=1.0, reduction='mean'),
+    pyramid_loss=dict(type="PyramidLoss", pyramid_loss_weight=1,remove_pyramid_loss=500),
+    perceptual_loss=dict(type="PerceptualLoss",layer_weights=dict(
+                            conv1_2=0.1,
+                            conv2_2=0.1,
+                            conv3_4=1,
+                            conv4_4=1,
+                            conv5_4=1,
+                         ), vgg_type="vgg19", use_input_norm=True, perceptual_weight=1.0,
+                         style_weight=50, range_norm=True, criterion="l1"),
+    gan_loss=dict(type="GANLoss", gan_type="wgan_softplus", loss_weight=0.1),
+    gan_componen_loss=dict(type="GANLoss", gan_type="vanilla", real_label_val=1.0, fake_label_val=1.0,
+                           loss_weight=1.0),
+    )
 
 # model training and testing settings
-train_cfg = dict(fix_iter=5000, gfp_fix_iter=50000)
+train_cfg = dict(fix_iter=5000, gfp_fix_iter=50000, r1_reg_weight=10,
+                 net_d_iters=1, net_d_init_iters=0, net_d_reg_every= 16)
 test_cfg = dict(metrics=['PSNR', 'SSIM'], crop_border=0)
 
 # dataset settings

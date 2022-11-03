@@ -13,6 +13,7 @@ from mmedit.utils import get_root_logger
 from .gfpgan.gfpgan_net import GFPGANv1
 from .gfpgan.gfpganv1_clean_arch import GFPGANv1Clean
 from basicsr.archs.stylegan2_arch import ConvLayer
+
 @BACKBONES.register_module()
 class BasicVSRNet(nn.Module):
     """BasicVSR network structure for video super-resolution.

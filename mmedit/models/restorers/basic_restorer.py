@@ -9,8 +9,6 @@ from mmedit.core import psnr, ssim, tensor2img
 from ..base import BaseModel
 from ..builder import build_backbone, build_component, build_loss
 from ..registry import MODELS
-from ..backbones.sr_backbones.gfpgan.gfpganv1_clean_arch import GFPGANv1Clean
-from ..backbones.sr_backbones.gfpgan.gfpgan_net import GFPGANv1
 
 @MODELS.register_module()
 class BasicRestorer(BaseModel):
@@ -33,8 +31,13 @@ class BasicRestorer(BaseModel):
 
     def __init__(self,
                  generator,
-                #  gfpgan,
+                 discriminator,
                  pixel_loss,
+                 l1_loss,
+                 pyramid_loss,
+                 perceptual_loss,
+                 gan_loss,
+                 gan_componen_loss,
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
@@ -49,7 +52,14 @@ class BasicRestorer(BaseModel):
         # generator
         self.generator = build_backbone(generator)
         self.init_weights(pretrained)
-        
+
+        # discriminator
+        self.discriminator = build_component(discriminator['network_d'])
+        self.network_d_left_eye = build_component(discriminator['network_d_left_eye'])
+        self.network_d_right_eye = build_component(discriminator['network_d_right_eye'])
+        self.network_d_mouth = build_component(discriminator['network_d_mouth'])
+        self.network_identity = build_component(discriminator['network_identity'])
+
         # self.gfpgan = build_backbone(gfpgan)
         # self.gfpgan = GFPGANv1(**gfpgan)
         # breakpoint()
@@ -61,9 +71,19 @@ class BasicRestorer(BaseModel):
         # for k in self.gfpgan.parameters():
         #     k.requires_grad = False
 
-
         # loss
         self.pixel_loss = build_loss(pixel_loss)
+        self.l1_loss = build_loss(l1_loss)
+        self.perceptual_loss = build_loss(perceptual_loss)
+        
+        breakpoint()
+        '''
+        Next: implement remain loss
+        '''
+        self.pyramid_loss = build_loss(pyramid_loss)
+        self.gan_loss = build_loss(gan_loss)
+        self.gan_component_loss = build_loss(gan_componen_loss)
+        
 
     def init_weights(self, pretrained=None):
         """Init weights for models.
