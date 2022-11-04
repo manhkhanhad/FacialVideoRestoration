@@ -7,17 +7,20 @@ from mmcv.runner import auto_fp16
 
 from mmedit.core import psnr, ssim, tensor2img
 from ..base import BaseModel
-from ..builder import build_backbone, build_loss
+from ..builder import build_backbone, build_component, build_loss
 from ..registry import MODELS
-
+from .basic_restorer import BasicRestorer
 
 @MODELS.register_module()
-class BasicRestorer(BaseModel):
+class STERR_GAN(BasicRestorer):
     """Basic model for image restoration.
+
     It must contain a generator that takes an image as inputs and outputs a
     restored image. It also has a pixel-wise loss for training.
+
     The subclasses should overwrite the function `forward_train`,
     `forward_test` and `train_step`.
+
     Args:
         generator (dict): Config for the generator structure.
         pixel_loss (dict): Config for pixel-wise loss.
@@ -28,7 +31,7 @@ class BasicRestorer(BaseModel):
     allowed_metrics = {'PSNR': psnr, 'SSIM': ssim}
 
     def __init__(self,
-                generator,
+                 generator,
                  discriminator,
                  pixel_loss,
                  l1_loss,
@@ -39,7 +42,8 @@ class BasicRestorer(BaseModel):
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
-        super().__init__()
+        super().__init__(generator, discriminator, pixel_loss, l1_loss, pyramid_loss, perceptual_loss, gan_loss, gan_componen_loss, train_cfg, test_cfg,
+                         pretrained)
 
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
@@ -51,11 +55,35 @@ class BasicRestorer(BaseModel):
         self.generator = build_backbone(generator)
         self.init_weights(pretrained)
 
+        # discriminator
+        self.discriminator = build_component(discriminator['network_d'])
+        self.network_d_left_eye = build_component(discriminator['network_d_left_eye'])
+        self.network_d_right_eye = build_component(discriminator['network_d_right_eye'])
+        self.network_d_mouth = build_component(discriminator['network_d_mouth'])
+        self.network_identity = build_component(discriminator['network_identity'])
+
+        # self.gfpgan = build_backbone(gfpgan)
+        # self.gfpgan = GFPGANv1(**gfpgan)
+        # breakpoint()
+        # for k,v in self.gfpgan.named_parameters(): 
+        #     print(k)
+        # exit()
+
+        # self.gfpgan.eval()
+        # for k in self.gfpgan.parameters():
+        #     k.requires_grad = False
+
         # loss
         self.pixel_loss = build_loss(pixel_loss)
+        self.l1_loss = build_loss(l1_loss)
+        self.perceptual_loss = build_loss(perceptual_loss)
+        self.gan_loss = build_loss(gan_loss)
+        self.gan_component_loss = build_loss(gan_componen_loss)
+        
 
     def init_weights(self, pretrained=None):
         """Init weights for models.
+
         Args:
             pretrained (str, optional): Path for pretrained weights. If given
                 None, pretrained weights will not be loaded. Defaults to None.
@@ -65,6 +93,7 @@ class BasicRestorer(BaseModel):
     @auto_fp16(apply_to=('lq', ))
     def forward(self, lq, gt=None, test_mode=False, **kwargs):
         """Forward function.
+
         Args:
             lq (Tensor): Input lq images.
             gt (Tensor): Ground-truth image. Default: None.
@@ -76,30 +105,28 @@ class BasicRestorer(BaseModel):
             return self.forward_test(lq, gt, **kwargs)
 
         return self.forward_train(lq, gt)
-
+    
     def forward_train(self, lq, gt):
         """Training forward function.
+
         Args:
             lq (Tensor): LQ Tensor with shape (n, c, h, w).
             gt (Tensor): GT Tensor with shape (n, c, h, w).
+
         Returns:
             Tensor: Output tensor.
         """
-        losses = dict()
         output = self.generator(lq)
-        loss_pix = self.pixel_loss(output, gt)
-        losses['loss_pix'] = loss_pix
-        outputs = dict(
-            losses=losses,
-            num_samples=len(gt.data),
-            results=dict(lq=lq.cpu(), gt=gt.cpu(), output=output.cpu()))
-        return outputs
+        
+        return output
 
     def evaluate(self, output, gt):
         """Evaluation function.
+
         Args:
             output (Tensor): Model output with shape (n, c, h, w).
             gt (Tensor): GT Tensor with shape (n, c, h, w).
+
         Returns:
             dict: Evaluation results.
         """
@@ -122,6 +149,7 @@ class BasicRestorer(BaseModel):
                      save_path=None,
                      iteration=None):
         """Testing forward function.
+
         Args:
             lq (Tensor): LQ Tensor with shape (n, c, h, w).
             gt (Tensor): GT Tensor with shape (n, c, h, w). Default: None.
@@ -129,6 +157,7 @@ class BasicRestorer(BaseModel):
             save_path (str): Path to save image. Default: None.
             iteration (int): Iteration for the saving image name.
                 Default: None.
+
         Returns:
             dict: Output results.
         """
@@ -160,8 +189,10 @@ class BasicRestorer(BaseModel):
 
     def forward_dummy(self, img):
         """Used for computing network FLOPs.
+
         Args:
             img (Tensor): Input image.
+
         Returns:
             Tensor: Output image.
         """
@@ -170,30 +201,49 @@ class BasicRestorer(BaseModel):
 
     def train_step(self, data_batch, optimizer):
         """Train step.
+
         Args:
             data_batch (dict): A batch of data.
             optimizer (obj): Optimizer.
+
         Returns:
             dict: Returned output.
         """
+        # outputs = self(**data_batch, test_mode=False)
+        breakpoint()
         outputs = self(**data_batch, test_mode=False)
-        loss, log_vars = self.parse_losses(outputs.pop('losses'))
+        #OPTIMIZE GENERATOR
+        #Freeze disciminators
+        for p in self.discriminator.parameters():
+            p.requires_grad = False
+        self.optimizer_g.zero_grad()
 
-        # optimize
-        optimizer['generator'].zero_grad()
-        loss.backward()
-        optimizer['generator'].step()
-
-        outputs.update({'log_vars': log_vars})
-        return outputs
+        # do not update facial component net_d
+        if self.use_facial_disc:
+            for p in self.net_d_left_eye.parameters():
+                p.requires_grad = False
+            for p in self.net_d_right_eye.parameters():
+                p.requires_grad = False
+            for p in self.net_d_mouth.parameters():
+                p.requires_grad = False
+        
+        #Calculate loss
+        #Backward
+        
+        #OPTIMIZE DISCRIMINATOR
+        #Unfreeze disciminators
+        #Calculate loss
+        #Update
 
     def val_step(self, data_batch, **kwargs):
         """Validation step.
+
         Args:
             data_batch (dict): A batch of data.
             kwargs (dict): Other arguments for ``val_step``.
+
         Returns:
             dict: Returned output.
         """
         output = self.forward_test(**data_batch, **kwargs)
-        return 
+        return output

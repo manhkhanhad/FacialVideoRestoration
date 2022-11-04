@@ -2,7 +2,7 @@ exp_name = 'BasicVSR_GFPGAN_1'
 
 # model settings
 model = dict(
-    type='BasicVSR',
+    type='STERR_GAN',
     generator=dict(
         type='BasicVSRNet',
         mid_channels=32, # The origin is 64, change to 32 to match the input channel in GFPGAN
@@ -54,7 +54,7 @@ model = dict(
     ),
     pixel_loss=dict(type='CharbonnierLoss', loss_weight=0.1, reduction='mean'),
     l1_loss=dict(type='L1Loss', loss_weight=1.0, reduction='mean'),
-    pyramid_loss=dict(type="PyramidLoss", pyramid_loss_weight=1,remove_pyramid_loss=500),
+    pyramid_loss=dict(pyramid_loss_weight=1,remove_pyramid_loss=500),
     perceptual_loss=dict(type="PerceptualLoss",layer_weights=dict(
                             conv1_2=0.1,
                             conv2_2=0.1,
@@ -182,9 +182,22 @@ data = dict(
 optimizers = dict(
     generator=dict(
         type='Adam',
-        lr=2e-4,
+        lr=2e-3,
         betas=(0.9, 0.99),
-        paramwise_cfg=dict(custom_keys={'spynet': dict(lr_mult=0.125)})))
+        paramwise_cfg=dict(custom_keys={'spynet': dict(lr_mult=0.125)})),
+    discriminator=dict(
+        type='Adam',
+        lr=2e-3),
+    network_d_left_eye=dict(
+        type='Adam',
+        lr=2e-3),
+    network_d_right_eye=dict(
+        type='Adam',
+        lr=2e-3),
+    network_d_mouth=dict(
+        type='Adam',
+        lr=2e-3)
+    )
 
 # learning policy
 total_iters = 300000
