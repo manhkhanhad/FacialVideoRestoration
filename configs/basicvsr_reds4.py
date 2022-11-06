@@ -26,25 +26,26 @@ model = dict(
                 sft_half=True)
     ),
     discriminator=dict(
-        network_d=dict(
+        net_d=dict(
             type='StyleGAN2Discriminator',
             out_size=256,
             channel_multiplier=1,
             resample_kernel=[1, 3, 3, 1],
             pretrained="/home/ldtuan/VideoRestoration/GFPGAN/experiments/finetune2_GFPGAN_TalkingHead/models/net_d_510000.pth"
         ),
-        network_d_left_eye=dict(
+        net_d_left_eye=dict(
             type='FacialComponentDiscriminator',
             pretrained=None,
         ),
-        network_d_right_eye=dict(
-            type='FacialComponentDiscriminator',
-            pretrained=None,
-        ),network_d_mouth=dict(
+        net_d_right_eye=dict(
             type='FacialComponentDiscriminator',
             pretrained=None,
         ),
-        network_identity=dict(
+        net_d_mouth=dict(
+            type='FacialComponentDiscriminator',
+            pretrained=None,
+        ),
+        net_identity=dict(
             type="ResNetArcFace",
             block="IRBlock",
             layers=[2, 2, 2, 2],
@@ -79,7 +80,8 @@ val_dataset_type = 'SSTERR_GANDataset'
 
 train_pipeline = [
     dict(type='GenerateSegmentIndices', interval_list=[1], filename_tmpl='{:03d}.png'),
-    dict(type='TemporalReverse', keys='lq_path', reverse_ratio=0),
+    dict(type='LoadFacialComponent', component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/train_video.json'),
+    # dict(type='TemporalReverse', keys='lq_path', reverse_ratio=0),
     dict(
         type='LoadImageFromFileList',
         io_backend='disk',
@@ -94,14 +96,14 @@ train_pipeline = [
     # Do hiện tại data có video < 256 nên khi chay random crop ở dưới bị lỗi nên tạm thời resize video lại
     #Khi có data chuẩn >256 thì sửa lại code line 155 ở /home/ldtuan/VideoRestoration/BasicVSR_PlusPlus/mmedit/datasets/pipelines/augmentation.py
     dict(type='RescaleToZeroOne', keys=['lq', 'gt']),
-    dict(type='PairedRandomCrop', gt_patch_size=256),
-    dict(
-        type='Flip', keys=['lq', 'gt'], flip_ratio=0.5,
-        direction='horizontal'),
-    dict(type='Flip', keys=['lq', 'gt'], flip_ratio=0.5, direction='vertical'),
-    dict(type='RandomTransposeHW', keys=['lq', 'gt'], transpose_ratio=0.5),
+    # dict(type='PairedRandomCrop', gt_patch_size=256),
+    # dict(
+    #     type='Flip', keys=['lq', 'gt'], flip_ratio=0.5,
+    #     direction='horizontal'),
+    # dict(type='Flip', keys=['lq', 'gt'], flip_ratio=0.5, direction='vertical'),
+    # dict(type='RandomTransposeHW', keys=['lq', 'gt'], transpose_ratio=0.5),
     dict(type='FramesToTensor', keys=['lq', 'gt']),
-    dict(type='Collect', keys=['lq', 'gt'], meta_keys=['lq_path', 'gt_path'])
+    dict(type='Collect', keys=['lq', 'gt', 'facial_component'], meta_keys=['lq_path', 'gt_path'])
 ]
 
 test_pipeline = [
@@ -153,7 +155,7 @@ data = dict(
             lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/input',
             gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/output',
             component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/train_video.json',
-            num_input_frames=5,
+            num_input_frames=3,
             pipeline=train_pipeline,
             scale=1,
             test_mode=False)),
@@ -190,13 +192,13 @@ optimizers = dict(
     discriminator=dict(
         type='Adam',
         lr=2e-3),
-    network_d_left_eye=dict(
+    net_d_left_eye=dict(
         type='Adam',
         lr=2e-3),
-    network_d_right_eye=dict(
+    net_d_right_eye=dict(
         type='Adam',
         lr=2e-3),
-    network_d_mouth=dict(
+    net_d_mouth=dict(
         type='Adam',
         lr=2e-3)
     )

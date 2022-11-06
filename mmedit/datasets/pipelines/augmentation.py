@@ -1000,6 +1000,7 @@ class TemporalReverse:
         if reverse:
             for key in self.keys:
                 results[key].reverse()
+            
 
         results['reverse'] = reverse
 

@@ -39,13 +39,9 @@ class Compose:
             dict: A dict containing the processed data and information.
         """
         for t in self.transforms:
-            print(t.__class__.__name__, data)
-            # if 'interval' in data:
-            #     print(data['interval'])
             data = t(data)
             if data is None:
                 return None
-        exit()
         return data
 
     def __repr__(self):

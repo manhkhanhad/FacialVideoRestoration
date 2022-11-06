@@ -8,7 +8,7 @@ from mmcv.fileio import FileClient
 from mmedit.core.mask import (bbox2mask, brush_stroke_mask, get_irregular_mask,
                               random_bbox)
 from ..registry import PIPELINES
-
+import json
 
 @PIPELINES.register_module()
 class LoadImageFromFile:
@@ -544,4 +544,23 @@ class LoadPairedImageFromFile(LoadImageFromFile):
             results['ori_img_a'] = img_a.copy()
             results['ori_img_b'] = img_b.copy()
 
+        return results
+
+@PIPELINES.register_module()
+class LoadFacialComponent:
+    def __init__(self, component_file):
+        with open(component_file, 'r') as f:
+            self.component_list = json.load(f)
+    
+    def __call__(self, results):
+        
+        video_name = results['key']
+        start_frame_id = results['lq_path'][0].split('/')[-1][:-4]
+        end_frame_id = results['lq_path'][-1].split('/')[-1][:-4]
+        
+        facial_component = []
+        for i in range(int(start_frame_id), int(end_frame_id) + 1):
+            facial_component.append(self.component_list[video_name][str(i)])
+        
+        results['facial_component'] = facial_component
         return results
