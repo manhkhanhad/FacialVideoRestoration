@@ -1,4 +1,4 @@
-exp_name = 'BasicVSR_GFPGAN_1'
+exp_name = 'BasicVSR_GFPGAN_facial_w_component'
 
 # model settings
 model = dict(
@@ -74,8 +74,8 @@ train_cfg = dict(fix_iter=5000, gfp_fix_iter=50000, r1_reg_weight=10,
 test_cfg = dict(metrics=['PSNR', 'SSIM'], crop_border=0)
 
 # dataset settings
-train_dataset_type = 'SRFolderMultipleGTDataset'
-val_dataset_type = 'SRFolderMultipleGTDataset'
+train_dataset_type = 'SSTERR_GANDataset'
+val_dataset_type = 'SSTERR_GANDataset'
 
 train_pipeline = [
     dict(type='GenerateSegmentIndices', interval_list=[1], filename_tmpl='{:03d}.png'),
@@ -139,7 +139,7 @@ demo_pipeline = [
 ]
 
 data = dict(
-    workers_per_gpu=4,
+    workers_per_gpu=1,  #Need to be change when training
     train_dataloader=dict(samples_per_gpu=1, drop_last=True),  # 2 gpus
     val_dataloader=dict(samples_per_gpu=1),
     test_dataloader=dict(samples_per_gpu=1, workers_per_gpu=1),
@@ -152,6 +152,7 @@ data = dict(
             type=train_dataset_type,
             lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/input',
             gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/output',
+            component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/train_video.json',
             num_input_frames=5,
             pipeline=train_pipeline,
             scale=1,
@@ -161,6 +162,7 @@ data = dict(
         type=val_dataset_type,
         lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/input',
         gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/output',
+        component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/test_video.json',
         num_input_frames=30,
         pipeline=test_pipeline,
         scale=1,

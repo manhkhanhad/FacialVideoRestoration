@@ -7,6 +7,7 @@ from .registry import DATASETS, PIPELINES
 from .sr_folder_multiple_gt_dataset import SRFolderMultipleGTDataset
 from .sr_reds_multiple_gt_dataset import SRREDSMultipleGTDataset
 from .sr_vimeo90k_multiple_gt_dataset import SRVimeo90KMultipleGTDataset
+from .sterr_gan_dataset import SSTERR_GANDataset
 
 __all__ = [
     'DATASETS', 'PIPELINES', 'build_dataset', 'build_dataloader',
@@ -18,5 +19,5 @@ __all__ = [
     'SRREDSMultipleGTDataset', 'SRVimeo90KMultipleGTDataset',
     'SRTestMultipleGTDataset', 'SRFolderRefDataset', 'SRFacialLandmarkDataset',
     'SRFolderMultipleGTDataset', 'SRFolderVideoDataset', 'BaseVFIDataset',
-    'VFIVimeo90KDataset'
+    'VFIVimeo90KDataset', 'SSTERR_GANDataset',
 ]

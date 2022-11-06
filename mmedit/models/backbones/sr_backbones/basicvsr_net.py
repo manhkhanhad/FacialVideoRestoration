@@ -112,7 +112,7 @@ class BasicVSRNet(nn.Module):
 
         return flows_forward, flows_backward
 
-    def forward(self, lrs):
+    def forward(self, lrs, return_rgb):
         """Forward function for BasicVSR.
 
         Args:
@@ -176,7 +176,7 @@ class BasicVSRNet(nn.Module):
         # outputs = []
         # for i in range(5):
         #     outputs.append(torch.rand(1,32,256,256))
-        output, _ = self.gfpgan(torch.cat(outputs,0), return_rgb=False)
+        output, _ = self.gfpgan(torch.cat(outputs,0), return_rgb=return_rgb)
         output = output.reshape(lrs.size())
 
         # return torch.stack(outputs, dim=1)

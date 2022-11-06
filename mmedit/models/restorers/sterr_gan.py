@@ -1,15 +1,16 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import numbers
 import os.path as osp
-
+import math
 import mmcv
 from mmcv.runner import auto_fp16
-
+from torch.nn import functional as F
 from mmedit.core import psnr, ssim, tensor2img
 from ..base import BaseModel
 from ..builder import build_backbone, build_component, build_loss
 from ..registry import MODELS
 from .basic_restorer import BasicRestorer
+from torchvision.ops import roi_align
 
 @MODELS.register_module()
 class STERR_GAN(BasicRestorer):
@@ -80,7 +81,13 @@ class STERR_GAN(BasicRestorer):
         self.gan_loss = build_loss(gan_loss)
         self.gan_component_loss = build_loss(gan_componen_loss)
         
+        self.current_iter = 0
+        self.pyramid_loss_weight = pyramid_loss.get('pyramid_loss_weight', 0)
+        self.remove_pyramid_loss = pyramid_loss.get('remove_pyramid_loss', float('inf'))
+        self.log_size = int(math.log(generator['gfpgan']['out_size'], 2))
 
+        self.use_facial_disc = True
+        self.face_ratio = generator['gfpgan']['out_size'] / 512
     def init_weights(self, pretrained=None):
         """Init weights for models.
 
@@ -211,7 +218,8 @@ class STERR_GAN(BasicRestorer):
         """
         # outputs = self(**data_batch, test_mode=False)
         breakpoint()
-        outputs = self(**data_batch, test_mode=False)
+        # outputs = self(**data_batch, test_mode=False)
+        meta, lq, gt, loc_left_eyes, loc_right_eyes, loc_mouths = data_batch
         #OPTIMIZE GENERATOR
         #Freeze disciminators
         for p in self.discriminator.parameters():
@@ -226,6 +234,17 @@ class STERR_GAN(BasicRestorer):
                 p.requires_grad = False
             for p in self.net_d_mouth.parameters():
                 p.requires_grad = False
+        
+        # image pyramid loss weight#Opt
+        if self.pyramid_loss_weight > 0 and self.current_iter > self.remove_pyramid_loss:
+            pyramid_loss_weight = 1e-12  # very small weight to avoid unused param error
+        if pyramid_loss_weight > 0:
+            output, out_rgbs = self.generator(lq, return_rgb=True)
+            pyramid_gt = self.construct_img_pyramid(gt)
+        else:
+            output, out_rgbs =  self.generator(lq, return_rgb=False)
+
+        left_eyes, right_eyes, mouths = self.get_roi_regions(gt, output,  loc_left_eyes, loc_right_eyes, loc_mouths)
         
         #Calculate loss
         #Backward
@@ -247,3 +266,45 @@ class STERR_GAN(BasicRestorer):
         """
         output = self.forward_test(**data_batch, **kwargs)
         return output
+
+    def construct_img_pyramid(self, gt):
+        """Construct image pyramid for intermediate restoration loss"""
+        pyramid_gt = [gt]
+        down_img = gt
+        for _ in range(0, self.log_size - 3):
+            down_img = F.interpolate(down_img, scale_factor=0.5, mode='bilinear', align_corners=False)
+            pyramid_gt.insert(0, down_img)
+        return pyramid_gt
+
+    def get_roi_regions(self, gt, output,  loc_left_eyes, loc_right_eyes, loc_mouths, eye_out_size=80, mouth_out_size=120):
+        eye_out_size *= self.face_ratio
+        mouth_out_size *= self.face_ratio
+
+        rois_eyes = []
+        rois_mouths = []
+        for b in range(loc_left_eyes.size(0)):  # loop for batch size
+            # left eye and right eye
+            img_inds = loc_left_eyes.new_full((2, 1), b)
+            bbox = torch.stack([loc_left_eyes[b, :], loc_right_eyes[b, :]], dim=0)  # shape: (2, 4)
+            rois = torch.cat([img_inds, bbox], dim=-1)  # shape: (2, 5)
+            rois_eyes.append(rois)
+            # mouse
+            img_inds = loc_left_eyes.new_full((1, 1), b)
+            rois = torch.cat([img_inds, loc_mouths[b:b + 1, :]], dim=-1)  # shape: (1, 5)
+            rois_mouths.append(rois)
+
+        rois_eyes = torch.cat(rois_eyes, 0).to(self.device)
+        rois_mouths = torch.cat(rois_mouths, 0).to(self.device)
+
+        # real images
+        all_eyes = roi_align(gt, boxes=rois_eyes, output_size=eye_out_size) * self.face_ratio
+        left_eyes_gt = all_eyes[0::2, :, :, :]
+        right_eyes_gt = all_eyes[1::2, :, :, :]
+        mouths_gt = roi_align(gt, boxes=rois_mouths, output_size=mouth_out_size) * self.face_ratio
+        # output
+        all_eyes = roi_align(output, boxes=rois_eyes, output_size=eye_out_size) * self.face_ratio
+        left_eyes = all_eyes[0::2, :, :, :]
+        right_eyes = all_eyes[1::2, :, :, :]
+        mouths = roi_align(output, boxes=rois_mouths, output_size=mouth_out_size) * self.face_ratio
+
+        return left_eyes, right_eyes, mouths
