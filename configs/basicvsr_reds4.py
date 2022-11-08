@@ -65,8 +65,9 @@ model = dict(
                          ), vgg_type="vgg19", use_input_norm=True, perceptual_weight=1.0,
                          style_weight=50, range_norm=True, criterion="l1"),
     gan_loss=dict(type="GANLoss", gan_type="wgan_softplus", loss_weight=0.1),
-    gan_componen_loss=dict(type="GANLoss", gan_type="vanilla", real_label_val=1.0, fake_label_val=1.0,
+    gan_component_loss=dict(type="GANLoss", gan_type="vanilla", real_label_val=1.0, fake_label_val=1.0,
                            loss_weight=1.0),
+    identity_loss=dict(identity_weight=10)
     )
 
 # model training and testing settings
@@ -80,7 +81,6 @@ val_dataset_type = 'SSTERR_GANDataset'
 
 train_pipeline = [
     dict(type='GenerateSegmentIndices', interval_list=[1], filename_tmpl='{:03d}.png'),
-    dict(type='LoadFacialComponent', component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/train_video.json'),
     # dict(type='TemporalReverse', keys='lq_path', reverse_ratio=0),
     dict(
         type='LoadImageFromFileList',
@@ -93,6 +93,7 @@ train_pipeline = [
         key='gt',
         channel_order='rgb'),
     dict(type='Resize',keys=['lq', 'gt'], scale=(256, 256), keep_ratio=False),  
+    dict(type='LoadFacialComponent', component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/train_video.json'),
     # Do hiện tại data có video < 256 nên khi chay random crop ở dưới bị lỗi nên tạm thời resize video lại
     #Khi có data chuẩn >256 thì sửa lại code line 155 ở /home/ldtuan/VideoRestoration/BasicVSR_PlusPlus/mmedit/datasets/pipelines/augmentation.py
     dict(type='RescaleToZeroOne', keys=['lq', 'gt']),
@@ -155,7 +156,7 @@ data = dict(
             lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/input',
             gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/output',
             component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/train_video.json',
-            num_input_frames=3,
+            num_input_frames=4,
             pipeline=train_pipeline,
             scale=1,
             test_mode=False)),

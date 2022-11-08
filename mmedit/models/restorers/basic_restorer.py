@@ -35,7 +35,9 @@ class BasicRestorer(BaseModel):
                  pyramid_loss,
                  perceptual_loss,
                  gan_loss,
-                 gan_componen_loss,
+                 gan_component_loss,
+                 identity_loss,
+                 ensemble=None,
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):

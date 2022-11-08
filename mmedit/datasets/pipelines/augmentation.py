@@ -159,6 +159,7 @@ class Resize:
         results['keep_ratio'] = self.keep_ratio
         results['interpolation'] = self.interpolation
         results['backend'] = self.backend
+        results['resize_shape'] = self.scale
 
         return results
 
