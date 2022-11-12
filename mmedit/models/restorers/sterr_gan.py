@@ -15,6 +15,7 @@ import torch
 import cv2
 import numpy as np
 from collections import OrderedDict
+from basicsr.losses.gan_loss import r1_penalty
 
 @MODELS.register_module()
 class STERR_GAN(BasicRestorer):
@@ -37,14 +38,14 @@ class STERR_GAN(BasicRestorer):
 
     def __init__(self,
                  generator,
-                 discriminator,
-                 pixel_loss,
-                 l1_loss,
-                 pyramid_loss,
-                 perceptual_loss,
-                 gan_loss,
-                 gan_component_loss,
-                 identity_loss,
+                 discriminator = None,
+                 pixel_loss = None,
+                 l1_loss = None,
+                 pyramid_loss = None,
+                 perceptual_loss = None,
+                 gan_loss = None,
+                 gan_component_loss = None,
+                 identity_loss = None,
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
@@ -60,6 +61,7 @@ class STERR_GAN(BasicRestorer):
         # generator
         self.generator = build_backbone(generator)
         self.init_weights(pretrained)
+
 
         # discriminator
         self.discriminator = build_component(discriminator['net_d'])
@@ -81,24 +83,35 @@ class STERR_GAN(BasicRestorer):
 
         # loss
         self.pixel_loss = build_loss(pixel_loss)
-        self.l1_loss = build_loss(l1_loss)
-        self.perceptual_loss = build_loss(perceptual_loss)
-        self.gan_loss = build_loss(gan_loss)
-        self.gan_component_loss = build_loss(gan_component_loss)
+        
+
+        self.l1_loss = build_loss(l1_loss) if l1_loss is not None else None
+        self.perceptual_loss = build_loss(perceptual_loss) if perceptual_loss is not None else None
+        self.gan_loss = build_loss(gan_loss) if gan_loss is not None else None
+        self.gan_component_loss = build_loss(gan_component_loss) if gan_component_loss is not None else None
         
         self.current_iter = 1
-        self.pyramid_loss_weight = pyramid_loss.get('pyramid_loss_weight', 0)
-        self.identity_weight = identity_loss.get('identity_weight', 0)
-        self.remove_pyramid_loss = pyramid_loss.get('remove_pyramid_loss', float('inf'))
+        
+        if identity_loss is not None:
+            self.identity_weight = identity_loss.get('identity_weight', 0)
+        else:
+            self.identity_weight = 0
+            
+        if pyramid_loss is not None:
+            self.pyramid_loss_weight = pyramid_loss.get('pyramid_loss_weight', 0)
+            self.remove_pyramid_loss = pyramid_loss.get('remove_pyramid_loss', float('inf'))
+        else:
+            self.pyramid_loss_weight, self.remove_pyramid_loss = 0, float('inf')
+        
         self.log_size = int(math.log(generator['gfpgan']['out_size'], 2))
-
         self.use_facial_disc = True
         self.face_ratio = generator['gfpgan']['out_size'] / 512
         
         #NEED TO BE ADDED TO CONFIGS;
         self.net_d_iters = 1 # Update discriminator after net_d_iters
         self.net_d_init_iters = 0 #Begin count discriminator
-        
+        self.net_d_reg_every = 16
+        self.comp_style_weigh = 200
         
     def init_weights(self, pretrained=None):
         """Init weights for models.
@@ -235,7 +248,29 @@ class STERR_GAN(BasicRestorer):
         facial_component = data_batch.get('facial_component')
         meta = data_batch.get('meta')
         
+        # losses = dict()
+        # output, _ = self.generator(lq, return_rgb = False)
+        # loss_pix = self.pixel_loss(output, gt)
+        # losses['loss_pix'] = loss_pix
+        # outputs = dict(
+        #     losses=losses,
+        #     num_samples=len(gt.data),
+        #     results=dict(lq=lq.cpu(), gt=gt.cpu(), output=output.cpu()))
+        
+        # loss, log_vars = self.parse_losses(outputs.pop('losses'))
+        # print(log_vars)
+
+        # # optimize
+        # optimizer['generator'].zero_grad()
+        # loss.backward()
+        # optimizer['generator'].step()
+
+        # outputs.update({'log_vars': log_vars})
+        # return outputs
+        
+        
         gt = gt.flatten(0,1)
+        
         '''
             gt shape = [b, l, c, w, h]
             [[f1_1, f1_2, f1_3, f1_4], 
@@ -251,8 +286,7 @@ class STERR_GAN(BasicRestorer):
         #Freeze disciminators
         for p in self.discriminator.parameters():
             p.requires_grad = False
-        optimizer['generator'].zero_grad()
-
+        
         # do not update facial component net_d
         if self.use_facial_disc:
             for p in self.net_d_left_eye.parameters():
@@ -280,54 +314,166 @@ class STERR_GAN(BasicRestorer):
             # Pixel loss
             l_g_pix = self.pixel_loss(output, gt)
             l_g_total += l_g_pix
-            loss_dict['l_g_pix'] = l_g_pix
+            loss_dict['l_g_pix'] = l_g_pix.detach().cpu()
             
             # Image pyramid loss
             if self.pyramid_loss_weight > 0:
                 for i in range(0, self.log_size - 2):
                     l_pyramid = self.l1_loss(out_rgbs[i], pyramid_gt[i]) * self.pyramid_loss_weight
                     l_g_total += l_pyramid
-                    loss_dict[f'l_p_{2**(i+3)}'] = l_pyramid
+                    loss_dict[f'l_p_{2**(i+3)}'] = l_pyramid.detach().cpu()
             
             # Perceptual loss
-            l_g_percep, l_g_style = self.perceptual_loss(output, gt)
-            if l_g_percep is not None:
-                l_g_total += l_g_percep
-                loss_dict['l_g_percep'] = l_g_percep
-            if l_g_style is not None:
-                l_g_total += l_g_style
-                loss_dict['l_g_style'] = l_g_style
+            if self.perceptual_loss is not None:
+                l_g_percep, l_g_style = self.perceptual_loss(output, gt)
+                if l_g_percep is not None:
+                    l_g_total += l_g_percep
+                    loss_dict['l_g_percep'] = l_g_percep.detach().cpu()
+                if l_g_style is not None:
+                    l_g_total += l_g_style
+                    loss_dict['l_g_style'] = l_g_style.detach().cpu()
             
             # Gan loss
-            fake_g_pred = self.discriminator(output)
-            l_g_gan = self.gan_loss(fake_g_pred, True, is_disc=False)
-            l_g_total += l_g_gan
-            loss_dict['l_g_gan'] = l_g_gan
-            
-            #TODO: add facial component loss
+            if self.gan_loss is not None:
+                fake_g_pred = self.discriminator(output)
+                l_g_gan = self.gan_loss(fake_g_pred, True, is_disc=False)
+                l_g_total += l_g_gan
+                loss_dict['l_g_gan'] = l_g_gan.detach().cpu()
+                
+            # Facial component loss
+            if self.gan_component_loss is not None:
+                # left eye
+                fake_left_eye, fake_left_eye_feats = self.net_d_left_eye(left_eyes_output, return_feats=True)
+                l_g_gan = self.gan_component_loss(fake_left_eye, True, is_disc=False)
+                l_g_total += l_g_gan
+                loss_dict['l_g_gan_left_eye'] = l_g_gan.detach().cpu()
+                # right eye
+                fake_right_eye, fake_right_eye_feats = self.net_d_right_eye(right_eyes_output, return_feats=True)
+                l_g_gan = self.gan_component_loss(fake_right_eye, True, is_disc=False)
+                l_g_total += l_g_gan
+                loss_dict['l_g_gan_right_eye'] = l_g_gan.detach().cpu()
+                # mouth
+                fake_mouth, fake_mouth_feats = self.net_d_mouth(mouths_output, return_feats=True)
+                l_g_gan = self.gan_component_loss(fake_mouth, True, is_disc=False)
+                l_g_total += l_g_gan
+                loss_dict['l_g_gan_mouth'] = l_g_gan.detach().cpu()
+
+                # if self.comp_style_weigh > 0:
+                #     # get gt feat
+                #     _, real_left_eye_feats = self.net_d_left_eye(left_eyes_gt, return_feats=True)
+                #     _, real_right_eye_feats = self.net_d_right_eye(right_eyes_gt, return_feats=True)
+                #     _, real_mouth_feats = self.net_d_mouth(mouths_gt, return_feats=True)
+
+                #     def _comp_style(feat, feat_gt, criterion):
+                #         return criterion(self._gram_mat(feat[0]), self._gram_mat(
+                #             feat_gt[0].detach())) * 0.5 + criterion(
+                #                 self._gram_mat(feat[1]), self._gram_mat(feat_gt[1].detach()))
+
+                #     # facial component style loss
+                #     comp_style_loss = 0
+                #     comp_style_loss += _comp_style(fake_left_eye_feats, real_left_eye_feats, self.l1_loss)
+                #     comp_style_loss += _comp_style(fake_right_eye_feats, real_right_eye_feats, self.l1_loss)
+                #     comp_style_loss += _comp_style(fake_mouth_feats, real_mouth_feats, self.l1_loss)
+                #     comp_style_loss = comp_style_loss * self.comp_style_weigh
+                #     l_g_total += comp_style_loss
+                #     loss_dict['l_g_comp_style_loss'] = comp_style_loss
             
             # Identity loss
-            
-            # get gray images and resize
-            out_gray = self.gray_resize_for_identity(output)
-            gt_gray = self.gray_resize_for_identity(gt)
+            if self.identity_weight != 0:
+                # get gray images and resize
+                out_gray = self.gray_resize_for_identity(output)
+                gt_gray = self.gray_resize_for_identity(gt)
 
-            identity_gt = self.net_identity(gt_gray).detach()
-            identity_out = self.net_identity(out_gray)
-            l_identity = self.l1_loss(identity_out, identity_gt) * self.identity_weight
-            l_g_total += l_identity
-            loss_dict['l_identity'] = l_identity
-        
+                identity_gt = self.net_identity(gt_gray).detach()
+                identity_out = self.net_identity(out_gray)
+                l_identity = self.l1_loss(identity_out, identity_gt) * self.identity_weight
+                l_g_total += l_identity
+                loss_dict['l_identity'] = l_identity.detach().cpu()
+            
         #Backward
         optimizer['generator'].zero_grad()
         l_g_total.backward()
         optimizer['generator'].step()
 
+        # #OPTIMIZE DISCRIMINATOR
+        # #Unfreeze disciminators
+        for p in self.discriminator.parameters():
+            p.requires_grad = True
         
-        #OPTIMIZE DISCRIMINATOR
-        #Unfreeze disciminators
+        if self.use_facial_disc:
+            for p in self.net_d_left_eye.parameters():
+                p.requires_grad = True
+            for p in self.net_d_right_eye.parameters():
+                p.requires_grad = True
+            for p in self.net_d_mouth.parameters():
+                p.requires_grad = True
+                
         #Calculate loss
-        #Update
+        
+        if self.gan_loss is not None:
+            fake_d_pred = self.discriminator(output.detach())
+            real_d_pred = self.discriminator(gt)
+            l_d = self.gan_loss(real_d_pred, True, is_disc=True) + self.gan_loss(fake_d_pred, False, is_disc=True)
+            loss_dict['l_d'] = l_d.detach().cpu()
+            # In WGAN, real_score should be positive and fake_score should be negative
+            loss_dict['real_score'] = real_d_pred.detach().mean().cpu()
+            loss_dict['fake_score'] = fake_d_pred.detach().mean().cpu()
+        
+            #Update discriminator
+            optimizer['discriminator'].zero_grad()
+            l_d.backward()
+            if self.current_iter % self.net_d_reg_every == 0:
+                self.gt.requires_grad = True
+                real_pred = self.net_d(gt)
+                l_d_r1 = r1_penalty(real_pred, gt)
+                l_d_r1 = (self.r1_reg_weight / 2 * l_d_r1 * self.net_d_reg_every + 0 * real_pred[0])
+                loss_dict['l_d_r1'] = l_d_r1.detach().mean().cpu()
+                l_d_r1.backward()
+            optimizer['discriminator'].step()
+        
+        if self.gan_component_loss is not None:
+            #Update facial component discriminator
+            optimizer['net_d_left_eye'].zero_grad()
+            optimizer['net_d_right_eye'].zero_grad()
+            optimizer['net_d_mouth'].zero_grad()
+            
+            fake_d_pred, _ = self.net_d_left_eye(left_eyes_output.detach())
+            real_d_pred, _ = self.net_d_left_eye(left_eyes_gt)
+            l_d_left_eye = self.gan_component_loss(
+                real_d_pred, True, is_disc=True) + self.gan_loss(
+                    fake_d_pred, False, is_disc=True)
+            loss_dict['l_d_left_eye'] = l_d_left_eye.detach().cpu()
+            l_d_left_eye.backward()
+            # right eye
+            fake_d_pred, _ = self.net_d_right_eye(right_eyes_output.detach())
+            real_d_pred, _ = self.net_d_right_eye(right_eyes_gt)
+            l_d_right_eye = self.gan_component_loss(
+                real_d_pred, True, is_disc=True) + self.gan_loss(
+                    fake_d_pred, False, is_disc=True)
+            loss_dict['l_d_right_eye'] = l_d_right_eye.detach().cpu()
+            l_d_right_eye.backward()
+            # mouth
+            fake_d_pred, _ = self.net_d_mouth(mouths_output.detach())
+            real_d_pred, _ = self.net_d_mouth(mouths_gt)
+            l_d_mouth = self.gan_component_loss(
+                real_d_pred, True, is_disc=True) + self.gan_loss(
+                    fake_d_pred, False, is_disc=True)
+            loss_dict['l_d_mouth'] = l_d_mouth.detach().cpu()
+            l_d_mouth.backward()
+
+            optimizer['net_d_left_eye'].step()
+            optimizer['net_d_right_eye'].step()
+            optimizer['net_d_mouth'].step()
+        
+        # self.log_dict = self.reduce_loss_dict(loss_dict)
+        gt = gt.reshape(lq.shape)
+        output = output.reshape(lq.shape)
+        
+        return dict(
+            log_vars = loss_dict,
+            num_samples = 1,
+            results=dict(lq=lq.cpu(), gt=gt.cpu(), output=output.cpu())
+        )
 
     def val_step(self, data_batch, **kwargs):
         """Validation step.
@@ -387,3 +533,43 @@ class STERR_GAN(BasicRestorer):
         out_gray = out_gray.unsqueeze(1)
         out_gray = F.interpolate(out_gray, (size, size), mode='bilinear', align_corners=False)
         return out_gray
+    
+    def reduce_loss_dict(self, loss_dict):
+        """reduce loss dict.
+        In distributed training, it averages the losses among different GPUs .
+        Args:
+            loss_dict (OrderedDict): Loss dict.
+        """
+        with torch.no_grad():
+            if self.train_cfg['dist_train']:
+                keys = []
+                losses = []
+                for name, value in loss_dict.items():
+                    keys.append(name)
+                    losses.append(value)
+                losses = torch.stack(losses, 0)
+                torch.distributed.reduce(losses, dst=0)
+                if self.train_cfg['rank'] == 0:
+                    losses /= self.train_cfg['world_size']
+                loss_dict = {key: loss for key, loss in zip(keys, losses)}
+
+            log_dict = OrderedDict()
+            for name, value in loss_dict.items():
+                log_dict[name] = value.mean().item()
+
+            return log_dict
+    
+    def _gram_mat(self, x):
+        """Calculate Gram matrix.
+
+        Args:
+            x (torch.Tensor): Tensor with shape of (n, c, h, w).
+
+        Returns:
+            torch.Tensor: Gram matrix.
+        """
+        n, c, h, w = x.size()
+        features = x.view(n, c, w * h)
+        features_t = features.transpose(1, 2)
+        gram = features.bmm(features_t) / (c * h * w)
+        return gram

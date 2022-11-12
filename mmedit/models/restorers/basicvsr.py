@@ -32,19 +32,13 @@ class BasicVSR(BasicRestorer):
 
     def __init__(self,
                  generator,
-                 discriminator,
+                #  gfpgan,
                  pixel_loss,
-                 l1_loss,
-                 pyramid_loss,
-                 perceptual_loss,
-                 gan_loss,
-                 gan_component_loss,
-                 identity_loss,
                  ensemble=None,
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
-        super().__init__(generator, discriminator, pixel_loss, l1_loss, pyramid_loss, perceptual_loss, gan_loss, gan_component_loss, identity_loss, train_cfg, test_cfg,
+        super().__init__(generator, pixel_loss, train_cfg, test_cfg,
                          pretrained)
 
         # fix pre-trained networks

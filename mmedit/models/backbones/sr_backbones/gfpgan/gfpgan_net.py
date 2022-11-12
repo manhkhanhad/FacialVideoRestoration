@@ -9,6 +9,7 @@ from torch import nn
 from torch.nn import functional as F
 from .arcface_arch import conv3x3, BasicBlock, IRBlock, Bottleneck, SEBlock
 from mmedit.utils import get_root_logger
+import mmcv
 from mmcv.runner import load_checkpoint
 
 class StyleGAN2GeneratorSFT(StyleGAN2Generator):
@@ -456,9 +457,13 @@ class FacialComponentDiscriminator(nn.Module):
     
     def init_weight(self, pretrained=None, strict=True):
         if isinstance(pretrained, str):
+            # logger = get_root_logger()
+            # print("Load checkpoint facial component")
+            # load_checkpoint(self, pretrained, strict=strict, logger=logger)
             logger = get_root_logger()
-            print("Load checkpoint facial component")
-            load_checkpoint(self, pretrained, strict=strict, logger=logger)
+            # load_checkpoint(self, pretrained, strict=True, logger=logger)
+            mmcv.print_log(f'load checkpoint from {self.__class__.__name__} path: {pretrained}', logger)
+            self.load_state_dict(torch.load(pretrained, map_location=lambda storage, loc: storage)['params'])
         elif pretrained is None:
             '''
             Khanh TODO: INIT weight
@@ -544,6 +549,7 @@ class StyleGAN2Discriminator(nn.Module):
         if isinstance(pretrained, str):
             logger = get_root_logger()
             # load_checkpoint(self, pretrained, strict=True, logger=logger)
+            mmcv.print_log(f'load checkpoint from {self.__class__.__name__} path: {pretrained}', logger)
             self.load_state_dict(torch.load(pretrained, map_location=lambda storage, loc: storage)['params'])
             
         elif pretrained is None:

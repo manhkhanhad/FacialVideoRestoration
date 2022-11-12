@@ -558,14 +558,24 @@ class LoadFacialComponent:
         video_name = results['key']
         start_frame_id = results['lq_path'][0].split('/')[-1][:-4]
         end_frame_id = results['lq_path'][-1].split('/')[-1][:-4]
-
+        
         ratio = np.array(results['gt_ori_shape'][0])[1::-1] / np.array(results['resize_shape'])
         ratio = np.concatenate([ratio, ratio])
         
         facial_component = []
         for i in range(int(start_frame_id), int(end_frame_id) + 1):
             for component in ['left_eye', 'right_eye', 'mouth']:
-                cordinate = self.component_list[video_name][str(i)][component]
+                # cordinate = self.component_list[video_name][str(i)][component]
+                cordinate_list = self.component_list[video_name].get(str(i), None)
+
+                # print(self.component_list[video_name])
+                # print(video_name, str(i), component)
+                # print( results['lq_path'])
+                if cordinate_list is not None:
+                    cordinate = cordinate_list.get(component, None)
+                else:
+                    cordinate = np.array([0,0,0,0])
+                    
                 if cordinate is None:
                     cordinate = np.array([0,0,0,0])
                 else:

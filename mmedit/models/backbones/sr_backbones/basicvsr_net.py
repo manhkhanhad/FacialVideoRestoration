@@ -112,7 +112,7 @@ class BasicVSRNet(nn.Module):
 
         return flows_forward, flows_backward
 
-    def forward(self, lrs, return_rgb):
+    def forward(self, lrs, return_rgb = False):
         """Forward function for BasicVSR.
 
         Args:
