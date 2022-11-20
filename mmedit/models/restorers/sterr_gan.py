@@ -90,7 +90,8 @@ class STERR_GAN(BasicRestorer):
         self.gan_loss = build_loss(gan_loss) if gan_loss is not None else None
         self.gan_component_loss = build_loss(gan_component_loss) if gan_component_loss is not None else None
         
-        self.current_iter = 1
+        # self.current_iter = 1
+        self.register_buffer('current_iter', torch.ones(1))
         
         if identity_loss is not None:
             self.identity_weight = identity_loss.get('identity_weight', 0)
@@ -107,11 +108,17 @@ class STERR_GAN(BasicRestorer):
         self.use_facial_disc = True
         self.face_ratio = generator['gfpgan']['out_size'] / 512
         
+        self.fix_iter = train_cfg.get('fix_iter', 0) if train_cfg else 0
+        self.gfp_fix_iter = train_cfg.get('gfp_fix_iter', 0) if train_cfg else 0
+        self.is_weight_fixed = False
+        self.is_gfp_weight_fixed = False
+        
         #NEED TO BE ADDED TO CONFIGS;
         self.net_d_iters = 1 # Update discriminator after net_d_iters
         self.net_d_init_iters = 0 #Begin count discriminator
         self.net_d_reg_every = 16
-        self.comp_style_weigh = 200
+        self.comp_style_weight = 200
+        self.r1_reg_weight = 10
         
     def init_weights(self, pretrained=None):
         """Init weights for models.
@@ -155,22 +162,36 @@ class STERR_GAN(BasicRestorer):
     def evaluate(self, output, gt):
         """Evaluation function.
 
+        If the output contains multiple frames, we compute the metric
+        one by one and take an average.
+
         Args:
-            output (Tensor): Model output with shape (n, c, h, w).
-            gt (Tensor): GT Tensor with shape (n, c, h, w).
+            output (Tensor): Model output with shape (n, t, c, h, w).
+            gt (Tensor): GT Tensor with shape (n, t, c, h, w).
 
         Returns:
             dict: Evaluation results.
         """
         crop_border = self.test_cfg.crop_border
-
-        output = tensor2img(output)
-        gt = tensor2img(gt)
+        convert_to = self.test_cfg.get('convert_to', None)
 
         eval_result = dict()
         for metric in self.test_cfg.metrics:
-            eval_result[metric] = self.allowed_metrics[metric](output, gt,
-                                                               crop_border)
+            if output.ndim == 5:  # a sequence: (n, t, c, h, w)
+                avg = []
+                for i in range(0, output.size(1)):
+                    output_i = tensor2img(output[:, i, :, :, :])
+                    gt_i = tensor2img(gt[:, i, :, :, :])
+                    avg.append(self.allowed_metrics[metric](
+                        output_i, gt_i, crop_border, convert_to=convert_to))
+                eval_result[metric] = np.mean(avg)
+            elif output.ndim == 4:  # an image: (n, c, t, w), for Vimeo-90K-T
+                output_img = tensor2img(output)
+                gt_img = tensor2img(gt)
+                value = self.allowed_metrics[metric](
+                    output_img, gt_img, crop_border, convert_to=convert_to)
+                eval_result[metric] = value
+
         return eval_result
 
     def forward_test(self,
@@ -183,8 +204,8 @@ class STERR_GAN(BasicRestorer):
         """Testing forward function.
 
         Args:
-            lq (Tensor): LQ Tensor with shape (n, c, h, w).
-            gt (Tensor): GT Tensor with shape (n, c, h, w). Default: None.
+            lq (Tensor): LQ Tensor with shape (n, t, c, h, w).
+            gt (Tensor): GT Tensor with shape (n, t, c, h, w). Default: None.
             save_image (bool): Whether to save image. Default: False.
             save_path (str): Path to save image. Default: None.
             iteration (int): Iteration for the saving image name.
@@ -193,7 +214,19 @@ class STERR_GAN(BasicRestorer):
         Returns:
             dict: Output results.
         """
-        output = self.generator(lq)
+        with torch.no_grad():
+            output, _ = self.generator(lq, return_rgb=False)
+        output = output.reshape(lq.size())
+
+        # If the GT is an image (i.e. the center frame), the output sequence is
+        # turned to an image.
+        if gt is not None and gt.ndim == 4:
+            t = output.size(1)
+            if self.check_if_mirror_extended(lq):  # with mirror extension
+                output = 0.5 * (output[:, t // 4] + output[:, -1 - t // 4])
+            else:  # without mirror extension
+                output = output[:, t // 2]
+
         if self.test_cfg is not None and self.test_cfg.get('metrics', None):
             assert gt is not None, (
                 'evaluation with metrics must have gt images.')
@@ -205,20 +238,35 @@ class STERR_GAN(BasicRestorer):
 
         # save image
         if save_image:
-            lq_path = meta[0]['lq_path']
-            folder_name = osp.splitext(osp.basename(lq_path))[0]
-            if isinstance(iteration, numbers.Number):
-                save_path = osp.join(save_path, folder_name,
-                                     f'{folder_name}-{iteration + 1:06d}.png')
-            elif iteration is None:
-                save_path = osp.join(save_path, f'{folder_name}.png')
-            else:
-                raise ValueError('iteration should be number or None, '
-                                 f'but got {type(iteration)}')
-            mmcv.imwrite(tensor2img(output), save_path)
+            if output.ndim == 4:  # an image, key = 000001/0000 (Vimeo-90K)
+                img_name = meta[0]['key'].replace('/', '_')
+                if isinstance(iteration, numbers.Number):
+                    save_path = osp.join(
+                        save_path, f'{img_name}-{iteration + 1:06d}.png')
+                elif iteration is None:
+                    save_path = osp.join(save_path, f'{img_name}.png')
+                else:
+                    raise ValueError('iteration should be number or None, '
+                                     f'but got {type(iteration)}')
+                mmcv.imwrite(tensor2img(output), save_path)
+            elif output.ndim == 5:  # a sequence, key = 000
+                folder_name = meta[0]['key'].split('/')[0]
+                for i in range(0, output.size(1)):
+                    if isinstance(iteration, numbers.Number):
+                        save_path_i = osp.join(
+                            save_path, folder_name,
+                            f'{i:08d}-{iteration + 1:06d}.png')
+                    elif iteration is None:
+                        save_path_i = osp.join(save_path, folder_name,
+                                               f'{i:08d}.png')
+                    else:
+                        raise ValueError('iteration should be number or None, '
+                                         f'but got {type(iteration)}')
+                    mmcv.imwrite(
+                        tensor2img(output[:, i, :, :, :]), save_path_i)
 
         return results
-
+    
     def forward_dummy(self, img):
         """Used for computing network FLOPs.
 
@@ -232,6 +280,33 @@ class STERR_GAN(BasicRestorer):
         return out
 
     def train_step(self, data_batch, optimizer):
+        
+        if self.current_iter < self.fix_iter:
+            if not self.is_weight_fixed:
+                self.is_weight_fixed = True
+                for k, v in self.generator.named_parameters():
+                    if 'spynet' in k or 'edvr' in k:
+                        v.requires_grad_(False)
+        elif self.current_iter == self.fix_iter:
+            # train all the parameters
+            for k, v in self.generator.named_parameters():
+                if 'spynet' in k or 'edvr' in k:
+                    v.requires_grad_(True)
+
+        #Fix GFPGAM at the beginning
+        if self.current_iter < self.gfp_fix_iter:
+            if not self.is_gfp_weight_fixed:
+                self.is_gfp_weight_fixed = True
+                for k, v in self.generator.named_parameters():
+                    if 'gfp' in k:
+                        v.requires_grad_(False)
+        elif self.current_iter >= self.fix_iter:
+            # train all the parameters
+            # self.generator.requires_grad_(True)
+            for k, v in self.generator.named_parameters():
+                if 'gfp' in k:
+                    v.requires_grad_(True)
+                    
         """Train step.
 
         Args:
@@ -358,25 +433,25 @@ class STERR_GAN(BasicRestorer):
                 l_g_total += l_g_gan
                 loss_dict['l_g_gan_mouth'] = l_g_gan.detach().cpu()
 
-                # if self.comp_style_weigh > 0:
-                #     # get gt feat
-                #     _, real_left_eye_feats = self.net_d_left_eye(left_eyes_gt, return_feats=True)
-                #     _, real_right_eye_feats = self.net_d_right_eye(right_eyes_gt, return_feats=True)
-                #     _, real_mouth_feats = self.net_d_mouth(mouths_gt, return_feats=True)
+                if self.comp_style_weight > 0:
+                    # get gt feat
+                    _, real_left_eye_feats = self.net_d_left_eye(left_eyes_gt, return_feats=True)
+                    _, real_right_eye_feats = self.net_d_right_eye(right_eyes_gt, return_feats=True)
+                    _, real_mouth_feats = self.net_d_mouth(mouths_gt, return_feats=True)
 
-                #     def _comp_style(feat, feat_gt, criterion):
-                #         return criterion(self._gram_mat(feat[0]), self._gram_mat(
-                #             feat_gt[0].detach())) * 0.5 + criterion(
-                #                 self._gram_mat(feat[1]), self._gram_mat(feat_gt[1].detach()))
+                    def _comp_style(feat, feat_gt, criterion):
+                        return criterion(self._gram_mat(feat[0]), self._gram_mat(
+                            feat_gt[0].detach())) * 0.5 + criterion(
+                                self._gram_mat(feat[1]), self._gram_mat(feat_gt[1].detach()))
 
-                #     # facial component style loss
-                #     comp_style_loss = 0
-                #     comp_style_loss += _comp_style(fake_left_eye_feats, real_left_eye_feats, self.l1_loss)
-                #     comp_style_loss += _comp_style(fake_right_eye_feats, real_right_eye_feats, self.l1_loss)
-                #     comp_style_loss += _comp_style(fake_mouth_feats, real_mouth_feats, self.l1_loss)
-                #     comp_style_loss = comp_style_loss * self.comp_style_weigh
-                #     l_g_total += comp_style_loss
-                #     loss_dict['l_g_comp_style_loss'] = comp_style_loss
+                    # facial component style loss
+                    comp_style_loss = 0
+                    comp_style_loss += _comp_style(fake_left_eye_feats, real_left_eye_feats, self.l1_loss)
+                    comp_style_loss += _comp_style(fake_right_eye_feats, real_right_eye_feats, self.l1_loss)
+                    comp_style_loss += _comp_style(fake_mouth_feats, real_mouth_feats, self.l1_loss)
+                    comp_style_loss = comp_style_loss * self.comp_style_weight
+                    l_g_total += comp_style_loss
+                    loss_dict['l_g_comp_style_loss'] = comp_style_loss.detach().cpu()
             
             # Identity loss
             if self.identity_weight != 0:
@@ -423,8 +498,8 @@ class STERR_GAN(BasicRestorer):
             optimizer['discriminator'].zero_grad()
             l_d.backward()
             if self.current_iter % self.net_d_reg_every == 0:
-                self.gt.requires_grad = True
-                real_pred = self.net_d(gt)
+                gt.requires_grad = True
+                real_pred = self.discriminator(gt)
                 l_d_r1 = r1_penalty(real_pred, gt)
                 l_d_r1 = (self.r1_reg_weight / 2 * l_d_r1 * self.net_d_reg_every + 0 * real_pred[0])
                 loss_dict['l_d_r1'] = l_d_r1.detach().mean().cpu()
@@ -468,6 +543,8 @@ class STERR_GAN(BasicRestorer):
         # self.log_dict = self.reduce_loss_dict(loss_dict)
         gt = gt.reshape(lq.shape)
         output = output.reshape(lq.shape)
+        
+        self.current_iter += 1
         
         return dict(
             log_vars = loss_dict,

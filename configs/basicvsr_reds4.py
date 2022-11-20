@@ -1,4 +1,4 @@
-exp_name = 'BasicVSR_GFPGAN_1'
+exp_name = 'BasicVSR_GFPGAN_w_facial_component'
 
 # model settings
 model = dict(
