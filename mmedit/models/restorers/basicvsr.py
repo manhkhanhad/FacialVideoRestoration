@@ -10,6 +10,14 @@ from mmedit.core import tensor2img
 from ..registry import MODELS
 from .basic_restorer import BasicRestorer
 
+import math
+import sys
+sys.append("../../../")
+from raft import RAFT
+from utils import flow_viz
+from utils.utils import InputPadder
+from utils.flownet import detect_occlusion, resize_flow, tensor2img, read_img, save_img, img2tensor
+from networks.resample2d_package.resample2d import Resample2d
 
 @MODELS.register_module()
 class BasicVSR(BasicRestorer):
@@ -119,7 +127,37 @@ class BasicVSR(BasicRestorer):
                     v.requires_grad_(True)
 
 
-        outputs = self(**data_batch, test_mode=False)
+        lq = data_batch.get('lq')
+        gt = data_batch.get('gt')
+        H_orig, W_orig = lq.shape[-2], lq.shape[-1]
+
+        model = self.generator
+        losses = dict()
+        output, flows_forward, flows_backward = self.generator(lq)
+
+        # Compute occlusion mask
+        for image1, image2 in zip(lq[:-1], lq[1:]):
+            padder = InputPadder(image1.shape)
+            image1, image2 = padder.pad(image1, image2)
+            _, fw_flow_up = model(image1, image2, iters=20, test_mode=True)
+            fw_flow = tensor2img(fw_flow_up)
+            _, bw_flow_up = model(image2, image1, iters=20, test_mode=True)
+            bw_flow = tensor2img(bw_flow_up)
+
+            fw_flow = resize_flow(fw_flow, W_out = W_orig, H_out = H_orig)
+            bw_flow = resize_flow(bw_flow, W_out = W_orig, H_out = H_orig) 
+
+            fw_occ = detect_occlusion(bw_flow, fw_flow)
+            fw_occ = np.stack([fw_occ, fw_occ, fw_occ], axis=2)
+
+        loss_pix = self.pixel_loss(output, gt)
+        losses['loss_pix'] = loss_pix
+        outputs = dict(
+            losses=losses,
+            num_samples=len(gt.data),
+            results=dict(lq=lq.cpu(), gt=gt.cpu(), output=output.cpu()))
+
+        # outputs = self(**data_batch, test_mode=False)
         loss, log_vars = self.parse_losses(outputs.pop('losses'))
 
         # optimize
