@@ -528,13 +528,13 @@ def compute_flow_gradients_tensor(flow):
     return flow_x_du, flow_x_dv, flow_y_du, flow_y_dv
 
 
-def detect_occlusion(fw_flow, bw_flow):
+def detect_occlusion(fw_flow, bw_flow, train_mode=False):
     
     ## fw-flow: img1 => img2
     ## bw-flow: img2 => img1
 
     
-    with torch.no_grad():
+    with torch.set_grad_enabled(train_mode):
 
         ## convert to tensor
         fw_flow_t = img2tensor(fw_flow).cuda()
@@ -570,14 +570,15 @@ def detect_occlusion(fw_flow, bw_flow):
 
     return occlusion
 
-def detect_occlusion_tensor(fw_flow, bw_flow):
+def detect_occlusion_tensor(fw_flow, bw_flow, train_mode=False):
     ## convert to tensor
     fw_flow_t = fw_flow
     bw_flow_t = bw_flow
 
-    ## warp fw-flow to img2
-    flow_warping = Resample2d().cuda()
-    fw_flow_w = flow_warping(fw_flow_t, bw_flow_t)
+    with torch.set_grad_enabled(train_mode):
+        ## warp fw-flow to img2
+        flow_warping = Resample2d().cuda()
+        fw_flow_w = flow_warping(fw_flow_t, bw_flow_t)
 
     ## convert to numpy array
     # fw_flow_w = tensor2img(fw_flow_w)

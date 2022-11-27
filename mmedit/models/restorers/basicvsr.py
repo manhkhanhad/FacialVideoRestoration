@@ -12,12 +12,38 @@ from .basic_restorer import BasicRestorer
 
 import math
 import sys
-sys.append("../../../")
+sys.path.append("/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT")
+sys.path.append('/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT/core')
 from raft import RAFT
 from utils import flow_viz
 from utils.utils import InputPadder
-from utils.flownet import detect_occlusion, resize_flow, tensor2img, read_img, save_img, img2tensor
+from utils.flownet import detect_occlusion_tensor, resize_flow, tensor2img, read_img, save_img, img2tensor
 from networks.resample2d_package.resample2d import Resample2d
+
+def compute_flow_tensor(image1, image2, model=None, train_mode=False):
+    with torch.set_grad_enabled(train_mode):
+        padder = InputPadder(image1.shape)
+        image1, image2 = padder.pad(image1, image2)
+        _, fw_flow_up = model(image1, image2, iters=20, test_mode=True)
+        _, bw_flow_up = model(image2, image1, iters=20, test_mode=True)
+
+    return fw_flow_up, bw_flow_up
+
+def evaluate_warp_error_tensor(image1, image2, flow, occ_mask, flow_warping, train_mode=False):
+    noc_mask = 1 - occ_mask
+    with torch.set_grad_enabled(train_mode):
+        warp_image2 = flow_warping(image2, flow)
+
+    ## compute warping error
+    diff = torch.multiply(warp_image2 - image1, noc_mask)
+    N = torch.sum(noc_mask)
+    print (f"N: {N}")
+    if (N >= 1000):
+        breakpoint()
+    if N == 0:
+        N = diff.shape[0] * diff.shape[1] * diff.shape[2] * diff.shape[3]
+    print (f"torch.sum(torch.square(diff)) / N: {torch.sum(torch.square(diff)) / N}")
+    return torch.sum(torch.square(diff)) / N
 
 @MODELS.register_module()
 class BasicVSR(BasicRestorer):
@@ -134,24 +160,52 @@ class BasicVSR(BasicRestorer):
         model = self.generator
         losses = dict()
         output, flows_forward, flows_backward = self.generator(lq)
+        err = torch.tensor(0.0, device=output.device)
+        
 
-        # Compute occlusion mask
-        for image1, image2 in zip(lq[:-1], lq[1:]):
-            padder = InputPadder(image1.shape)
-            image1, image2 = padder.pad(image1, image2)
-            _, fw_flow_up = model(image1, image2, iters=20, test_mode=True)
-            fw_flow = tensor2img(fw_flow_up)
-            _, bw_flow_up = model(image2, image1, iters=20, test_mode=True)
-            bw_flow = tensor2img(bw_flow_up)
+        train_mode = True
+        images1 = output.squeeze(0)[:-1]
+        images2 = output.squeeze(0)[1:]
 
-            fw_flow = resize_flow(fw_flow, W_out = W_orig, H_out = H_orig)
-            bw_flow = resize_flow(bw_flow, W_out = W_orig, H_out = H_orig) 
+        if (torch.all(images1 < 255) and torch.all(images1 > -255) and torch.all(images2 < 255) and torch.all(images2 > -255)):
+            fw_flows, bw_flows = compute_flow_tensor(images1, images2, self.raft, train_mode)
+            fw_occs = detect_occlusion_tensor(bw_flows, fw_flows, train_mode)
+            fw_occs = torch.stack([fw_occs, fw_occs, fw_occs], axis=1)
+            err += evaluate_warp_error_tensor(images1, images2, fw_flows, fw_occs, self.flow_warping, train_mode)
+            # compute stable loss
+            losses['loss_stable'] = err * 20000
+            loss_pix = self.pixel_loss(output, gt)
+            losses['loss_pix'] = loss_pix
+        else:
+            outputs = dict(
+            losses=losses,
+            num_samples=len(gt.data),
+            results=dict(lq=lq.cpu(), gt=gt.cpu(), output=output.cpu()))
+            return outputs
 
-            fw_occ = detect_occlusion(bw_flow, fw_flow)
-            fw_occ = np.stack([fw_occ, fw_occ, fw_occ], axis=2)
 
-        loss_pix = self.pixel_loss(output, gt)
-        losses['loss_pix'] = loss_pix
+        # for image1, image2 in zip(output[0,:-1,:,:,:], output[0,1:,:,:,:]):
+        #     if (torch.any(image1 > 1) or torch.any(image2 > 1)):
+        #         continue
+        #     image1 = image1.unsqueeze(0)
+        #     image2 = image2.unsqueeze(0)
+        #     padder = InputPadder(image1.shape)
+        #     image1, image2 = padder.pad(image1, image2)
+        #     # compute optical flow
+        #     fw_flow, bw_flow = compute_flow_tensor(image1, image2, self.raft, train_mode)
+        #     # Compute occlusion mask
+        #     fw_occ = detect_occlusion_tensor(bw_flow, fw_flow, train_mode)
+        #     fw_occ = torch.stack([fw_occ, fw_occ, fw_occ], axis=1)
+        #     # compute warping error
+        #     err += evaluate_warp_error_tensor(image1, image2, fw_flow, fw_occ, self.flow_warping, train_mode)
+        
+        # loss_pix = self.pixel_loss(output, gt)
+        # losses['loss_pix'] = loss_pix
+
+        print ("================")
+        print (lq.shape)
+        print (losses)
+
         outputs = dict(
             losses=losses,
             num_samples=len(gt.data),
@@ -161,7 +215,7 @@ class BasicVSR(BasicRestorer):
         loss, log_vars = self.parse_losses(outputs.pop('losses'))
 
         # optimize
-        optimizer['generator'].zero_grad()
+        # optimizer['generator'].zero_grad()
         loss.backward()
         optimizer['generator'].step()
 

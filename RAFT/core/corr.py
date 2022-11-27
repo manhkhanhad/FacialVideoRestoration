@@ -1,6 +1,9 @@
 import torch
 import torch.nn.functional as F
 from utils.utils import bilinear_sampler, coords_grid
+import sys
+sys.path.append("/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT")
+sys.path.append('/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT/core')
 
 try:
     import alt_cuda_corr

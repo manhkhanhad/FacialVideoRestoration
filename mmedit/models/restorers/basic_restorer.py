@@ -11,6 +11,18 @@ from ..builder import build_backbone, build_component, build_loss
 from ..registry import MODELS
 from ..backbones.sr_backbones.gfpgan.gfpganv1_clean_arch import GFPGANv1Clean
 from ..backbones.sr_backbones.gfpgan.gfpgan_net import GFPGANv1
+import torch
+import sys
+sys.path.append("/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT")
+sys.path.append('/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT/core')
+from raft import RAFT
+from networks.resample2d_package.resample2d import Resample2d
+
+class dotdict(dict):
+    """dot.notation access to dictionary attributes"""
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
 
 @MODELS.register_module()
 class BasicRestorer(BaseModel):
@@ -49,6 +61,18 @@ class BasicRestorer(BaseModel):
         # generator
         self.generator = build_backbone(generator)
         self.init_weights(pretrained)
+
+        # init raft
+        args = {
+            'model': "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT/models/raft-things.pth",
+            'small': False,
+            'mixed_precision': False,
+            'alternate_corr': False,
+        }
+        args = dotdict(args)
+        self.raft = torch.nn.DataParallel(RAFT(args))
+        DEVICE = 'cuda'
+        self.flow_warping = Resample2d().to(DEVICE)
         
         # self.gfpgan = build_backbone(gfpgan)
         # self.gfpgan = GFPGANv1(**gfpgan)
