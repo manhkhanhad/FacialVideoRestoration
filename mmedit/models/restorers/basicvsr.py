@@ -155,11 +155,13 @@ class BasicVSR(BasicRestorer):
 
         lq = data_batch.get('lq')
         gt = data_batch.get('gt')
+        
         H_orig, W_orig = lq.shape[-2], lq.shape[-1]
 
-        model = self.generator
         losses = dict()
-        output, flows_forward, flows_backward = self.generator(lq)
+        # output, flows_forward, flows_backward = self.generator(lq)
+        output = self.generator(lq)
+        output= self.generator(lq)
         err = torch.tensor(0.0, device=output.device)
         
 
@@ -174,15 +176,6 @@ class BasicVSR(BasicRestorer):
             err += evaluate_warp_error_tensor(images1, images2, fw_flows, fw_occs, self.flow_warping, train_mode)
             # compute stable loss
             losses['loss_stable'] = err * 20000
-            loss_pix = self.pixel_loss(output, gt)
-            losses['loss_pix'] = loss_pix
-        else:
-            outputs = dict(
-            losses=losses,
-            num_samples=len(gt.data),
-            results=dict(lq=lq.cpu(), gt=gt.cpu(), output=output.cpu()))
-            return outputs
-
 
         # for image1, image2 in zip(output[0,:-1,:,:,:], output[0,1:,:,:,:]):
         #     if (torch.any(image1 > 1) or torch.any(image2 > 1)):
@@ -199,23 +192,25 @@ class BasicVSR(BasicRestorer):
         #     # compute warping error
         #     err += evaluate_warp_error_tensor(image1, image2, fw_flow, fw_occ, self.flow_warping, train_mode)
         
-        # loss_pix = self.pixel_loss(output, gt)
-        # losses['loss_pix'] = loss_pix
-
-        print ("================")
-        print (lq.shape)
-        print (losses)
+        loss_pix = self.pixel_loss(output, gt)
+        losses['loss_pix'] = loss_pix
 
         outputs = dict(
             losses=losses,
             num_samples=len(gt.data),
             results=dict(lq=lq.cpu(), gt=gt.cpu(), output=output.cpu()))
 
-        # outputs = self(**data_batch, test_mode=False)
+
         loss, log_vars = self.parse_losses(outputs.pop('losses'))
 
+        print ("================")
+        # print (lq.shape)
+        print (losses)
+        print (loss)
+
+
         # optimize
-        # optimizer['generator'].zero_grad()
+        optimizer['generator'].zero_grad()
         loss.backward()
         optimizer['generator'].step()
 

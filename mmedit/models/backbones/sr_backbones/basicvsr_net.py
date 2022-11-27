@@ -179,6 +179,7 @@ class BasicVSRNet(nn.Module):
         output = output.reshape(lrs.size())
 
         # return torch.stack(outputs, dim=1)
+        return output
         return output, flows_forward, flows_backward
 
     def init_weights(self, pretrained=None, strict=True):
