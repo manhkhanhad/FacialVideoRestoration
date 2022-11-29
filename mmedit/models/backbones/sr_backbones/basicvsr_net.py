@@ -13,6 +13,7 @@ from mmedit.utils import get_root_logger
 from .gfpgan.gfpgan_net import GFPGANv1
 from .gfpgan.gfpganv1_clean_arch import GFPGANv1Clean
 from basicsr.archs.stylegan2_arch import ConvLayer
+
 @BACKBONES.register_module()
 class BasicVSRNet(nn.Module):
     """BasicVSR network structure for video super-resolution.
@@ -61,7 +62,7 @@ class BasicVSRNet(nn.Module):
 
         # activation function
         self.lrelu = nn.LeakyReLU(negative_slope=0.1, inplace=True)
-
+        
         # gfpgan
         # self.gfpgan = build_component(gfpgan)
         self.gfpgan = GFPGANv1(**gfpgan)
@@ -111,7 +112,7 @@ class BasicVSRNet(nn.Module):
 
         return flows_forward, flows_backward
 
-    def forward(self, lrs):
+    def forward(self, lrs, return_rgb = False):
         """Forward function for BasicVSR.
 
         Args:
@@ -175,11 +176,11 @@ class BasicVSRNet(nn.Module):
         # outputs = []
         # for i in range(5):
         #     outputs.append(torch.rand(1,32,256,256))
-        output, _ = self.gfpgan(torch.cat(outputs,0), return_rgb=False)
-        output = output.reshape(lrs.size())
+        output, rgb = self.gfpgan(torch.cat(outputs,0), return_rgb=return_rgb)
+        # output = output.reshape(lrs.size())
 
         # return torch.stack(outputs, dim=1)
-        return output
+        return output, rgb
 
     def init_weights(self, pretrained=None, strict=True):
         """Init weights for models.

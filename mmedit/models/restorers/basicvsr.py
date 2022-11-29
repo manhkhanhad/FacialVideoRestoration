@@ -9,7 +9,7 @@ import torch
 from mmedit.core import tensor2img
 from ..registry import MODELS
 from .basic_restorer import BasicRestorer
-
+from collections import OrderedDict
 
 @MODELS.register_module()
 class BasicVSR(BasicRestorer):
@@ -47,8 +47,8 @@ class BasicVSR(BasicRestorer):
         self.is_weight_fixed = False
         self.is_gfp_weight_fixed = False
         # count training steps
-        self.register_buffer('step_counter', torch.zeros(1))
-
+        self.register_buffer('current_iter', torch.ones(1))
+        
         # ensemble
         self.forward_ensemble = None
         if ensemble is not None:
@@ -92,45 +92,65 @@ class BasicVSR(BasicRestorer):
             dict: Returned output.
         """
         # fix SPyNet and EDVR at the beginning
-        if self.step_counter < self.fix_iter:
+        if self.current_iter < self.fix_iter:
             if not self.is_weight_fixed:
                 self.is_weight_fixed = True
                 for k, v in self.generator.named_parameters():
                     if 'spynet' in k or 'edvr' in k:
                         v.requires_grad_(False)
-        elif self.step_counter == self.fix_iter:
+        elif self.current_iter == self.fix_iter:
             # train all the parameters
             for k, v in self.generator.named_parameters():
                 if 'spynet' in k or 'edvr' in k:
                     v.requires_grad_(True)
 
         #Fix GFPGAM at the beginning
-        if self.step_counter < self.gfp_fix_iter:
+        if self.current_iter < self.gfp_fix_iter:
             if not self.is_gfp_weight_fixed:
                 self.is_gfp_weight_fixed = True
                 for k, v in self.generator.named_parameters():
                     if 'gfp' in k:
                         v.requires_grad_(False)
-        elif self.step_counter >= self.fix_iter:
+        elif self.current_iter >= self.fix_iter:
             # train all the parameters
             # self.generator.requires_grad_(True)
             for k, v in self.generator.named_parameters():
                 if 'gfp' in k:
                     v.requires_grad_(True)
 
+        lq = data_batch.get('lq')
+        gt = data_batch.get('gt')
+        meta = data_batch.get('meta')
+        gt = gt.flatten(0,1)
+        
+        output, _ = self.generator(lq, return_rgb=False)
+        l_g_total = 0
+        loss_dict = OrderedDict()
+        
+        l_g_pix = self.pixel_loss(output, gt)
+        l_g_total += l_g_pix
+        loss_dict['l_g_pix'] = l_g_pix.detach().cpu()
+        
 
-        outputs = self(**data_batch, test_mode=False)
-        loss, log_vars = self.parse_losses(outputs.pop('losses'))
 
-        # optimize
+        #outputs = self(**data_batch, test_mode=False)
+        #loss, log_vars = self.parse_losses(outputs.pop('losses'))
+
+        #Backward
         optimizer['generator'].zero_grad()
-        loss.backward()
+        l_g_total.backward()
         optimizer['generator'].step()
 
-        self.step_counter += 1
-
-        outputs.update({'log_vars': log_vars})
-        return outputs
+        gt = gt.reshape(lq.shape)
+        output = output.reshape(lq.shape)
+        
+        self.current_iter += 1
+        
+        return dict(
+            log_vars = loss_dict,
+            num_samples = 1,
+            results=dict(lq=lq.cpu(), gt=gt.cpu(), output=output.cpu())
+        )
 
     def evaluate(self, output, gt):
         """Evaluation function.
@@ -188,10 +208,8 @@ class BasicVSR(BasicRestorer):
             dict: Output results.
         """
         with torch.no_grad():
-            if self.forward_ensemble is not None:
-                output = self.forward_ensemble(lq, self.generator)
-            else:
-                output = self.generator(lq)
+            output, _ = self.generator(lq, return_rgb=False)
+        output = output.reshape(lq.size())
 
         # If the GT is an image (i.e. the center frame), the output sequence is
         # turned to an image.

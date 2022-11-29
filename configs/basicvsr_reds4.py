@@ -1,4 +1,4 @@
-exp_name = 'BasicVSR_GFPGAN_1'
+exp_name = 'BasicVSR_GFPGAN_debug_stable_loss_recode'
 
 # model settings
 model = dict(
@@ -16,7 +16,7 @@ model = dict(
                 channel_multiplier=1,
                 resample_kernel=[1, 3, 3, 1],
                 # decoder_load_path="experiments/pretrained_models/StyleGAN2_512_Cmul1_FFHQ_B12G4_scratch_800k.pth",
-                pretrained= "/home/ldtuan/VideoRestoration/GFPGAN/experiments/finetune2_GFPGAN_TalkingHead/models/net_g_505000.pth",
+                pretrained= "/tmp/net_g_505000.pth",
                 fix_decoder=True,
                 num_mlp=8,
                 lr_mlp=0.01,
@@ -108,8 +108,8 @@ data = dict(
         times=1000,
         dataset=dict(
             type=train_dataset_type,
-            lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/input',
-            gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/output',
+            lq_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/train/input',
+            gt_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/train/output',
             num_input_frames=5,
             pipeline=train_pipeline,
             scale=1,
@@ -117,8 +117,8 @@ data = dict(
     # val
     val=dict(
         type=val_dataset_type,
-        lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/input',
-        gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/output',
+        lq_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/input',
+        gt_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/output',
         num_input_frames=30,
         pipeline=test_pipeline,
         scale=1,
@@ -155,7 +155,7 @@ lr_config = dict(
 
 checkpoint_config = dict(interval=5000, save_optimizer=True, by_epoch=False)
 # remove gpu_collect=True in non distributed training
-evaluation = dict(interval=5000, save_image=True, gpu_collect=True)
+evaluation = dict(interval=3000, save_image=True, gpu_collect=True)
 log_config = dict(
     interval=100,
     hooks=[
