@@ -1,4 +1,4 @@
-exp_name = 'BasicVSR_GFPGAN_debug_stable_loss_recode'
+exp_name = 'BasicVSR_GFPGAN_stable_loss_2'
 
 # model settings
 model = dict(
@@ -16,7 +16,7 @@ model = dict(
                 channel_multiplier=1,
                 resample_kernel=[1, 3, 3, 1],
                 # decoder_load_path="experiments/pretrained_models/StyleGAN2_512_Cmul1_FFHQ_B12G4_scratch_800k.pth",
-                pretrained= "/tmp/net_g_505000.pth",
+                pretrained= "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/tmp2/net_g_505000.pth",
                 fix_decoder=True,
                 num_mlp=8,
                 lr_mlp=0.01,
@@ -155,7 +155,7 @@ lr_config = dict(
 
 checkpoint_config = dict(interval=5000, save_optimizer=True, by_epoch=False)
 # remove gpu_collect=True in non distributed training
-evaluation = dict(interval=3000, save_image=True, gpu_collect=True)
+evaluation = dict(interval=5000, save_image=True, gpu_collect=True)
 log_config = dict(
     interval=100,
     hooks=[
@@ -169,6 +169,6 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/{exp_name}'
 load_from = None
-resume_from = None
+resume_from = "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/work_dirs/BasicVSR_GFPGAN_stable_loss_2/latest.pth"
 workflow = [('train', 1)]
 find_unused_parameters = True
