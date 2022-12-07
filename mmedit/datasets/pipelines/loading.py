@@ -8,7 +8,8 @@ from mmcv.fileio import FileClient
 from mmedit.core.mask import (bbox2mask, brush_stroke_mask, get_irregular_mask,
                               random_bbox)
 from ..registry import PIPELINES
-
+import json
+import torch
 
 @PIPELINES.register_module()
 class LoadImageFromFile:
@@ -544,4 +545,55 @@ class LoadPairedImageFromFile(LoadImageFromFile):
             results['ori_img_a'] = img_a.copy()
             results['ori_img_b'] = img_b.copy()
 
+        return results
+
+@PIPELINES.register_module()
+class LoadFacialComponent:
+    def __init__(self, component_file):
+        with open(component_file, 'r') as f:
+            self.component_list = json.load(f)
+    
+    def __call__(self, results):
+        
+        video_name = results['key']
+        start_frame_id = results['lq_path'][0].split('/')[-1][:-4]
+        end_frame_id = results['lq_path'][-1].split('/')[-1][:-4]
+        
+        ratio = np.array(results['gt_ori_shape'][0])[1::-1] / np.array(results['resize_shape'])
+        ratio = np.concatenate([ratio, ratio])
+        
+        facial_component = []
+        for i in range(int(start_frame_id), int(end_frame_id) + 1):
+            for component in ['left_eye', 'right_eye', 'mouth']:
+                # cordinate = self.component_list[video_name][str(i)][component]
+                cordinate_list = self.component_list[video_name].get(str(i), None)
+
+                # print(self.component_list[video_name])
+                # print(video_name, str(i), component)
+                # print( results['lq_path'])
+                if cordinate_list is not None:
+                    cordinate = cordinate_list.get(component, None)
+                else:
+                    cordinate = np.array([0,0,0,0])
+                    
+                if cordinate is None:
+                    cordinate = np.array([0,0,0,0])
+                else:
+                    cordinate = np.array(cordinate) / ratio
+                    
+                facial_component.append(cordinate)
+            # facial_component.append(self.component_list[video_name][str(i)])
+            # print(self.component_list[video_name][str(i)] / list(ratio))
+        facial_component = torch.tensor(facial_component)
+        # print(facial_component)
+        
+        #Convert x,y,w,h --> x1,y1, x2,y2
+        new_cordinate = torch.ones_like(facial_component)
+        new_cordinate[:,0] = facial_component[:,0] - facial_component[:,2]
+        new_cordinate[:,1] = facial_component[:,1] - facial_component[:,3]
+        new_cordinate[:,2] = facial_component[:,0] + facial_component[:,2]
+        new_cordinate[:,3] = facial_component[:,1] + facial_component[:,3]
+        
+        # print(new_cordinate)
+        results['facial_component'] = new_cordinate
         return results

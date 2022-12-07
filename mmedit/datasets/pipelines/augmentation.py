@@ -159,6 +159,7 @@ class Resize:
         results['keep_ratio'] = self.keep_ratio
         results['interpolation'] = self.interpolation
         results['backend'] = self.backend
+        results['resize_shape'] = self.scale
 
         return results
 
@@ -1000,6 +1001,7 @@ class TemporalReverse:
         if reverse:
             for key in self.keys:
                 results[key].reverse()
+            
 
         results['reverse'] = reverse
 

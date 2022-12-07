@@ -98,9 +98,13 @@ def main():
     # init distributed env first, since logger depends on the dist info.
     if args.launcher == 'none':
         distributed = False
+        cfg.train_cfg['dist_train'] = True
     else:
         distributed = True
         init_dist(args.launcher, **cfg.dist_params)
+        cfg.train_cfg['dist_train'] = True
+        cfg.train_cfg['rank'] = dist.get_rank()
+        cfg.train_cfg['world_size'] = True
 
     # create work_dir
     mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))

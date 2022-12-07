@@ -1,4 +1,4 @@
-exp_name = 'BasicVSR_GFPGAN_stable_loss_2'
+exp_name = 'BasicVSR_GFPGAN_w_facial_component_stable_loss'
 
 # model settings
 model = dict(
