@@ -40,6 +40,7 @@ class Compose:
         """
         for t in self.transforms:
             data = t(data)
+            # print(t.__class__.__name__, data.keys())
             if data is None:
                 return None
         return data

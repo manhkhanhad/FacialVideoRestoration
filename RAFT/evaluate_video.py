@@ -90,7 +90,11 @@ def evaluate_warp_error_tensor(image1, image2, flow, occ_mask, flow_warping, tra
 
 def evaluate_video_tensor(folder_path, train_mode=False):
     images = glob.glob(os.path.join(folder_path, "*.png"))
+<<<<<<< HEAD
     images = sorted(images)
+=======
+    images = sorted(images)[:30]
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
     err = 0
     for imfile1, imfile2 in zip(images[:-1], images[1:]):
         image1 = load_image(imfile1)
@@ -105,7 +109,11 @@ def evaluate_video_tensor(folder_path, train_mode=False):
     
 def evaluate_video_tensor2(folder_path, train_mode=False):
     images = glob.glob(os.path.join(folder_path, "*.png"))
+<<<<<<< HEAD
     images = sorted(images)
+=======
+    images = sorted(images)[:30]
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
     err = 0
     images = torch.stack([load_image(imfile).squeeze(0) for imfile in images])
     images1 = images[:-1]
@@ -136,21 +144,34 @@ model.eval()
 flow_warping = Resample2d().to(DEVICE)
 
 # input_folder_root = "./data/"
+<<<<<<< HEAD
 input_folder_root = "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT/data/home/ldtuan/VideoRestoration/STERR-GAN/RAFT/data/"
+=======
+# input_folder_root = "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/output/"
+input_folder_root = "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/Test/results/images/"
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
 input_folders = [os.path.join(input_folder_root, folder) for folder in os.listdir(input_folder_root)]
 input_folders.sort()
 
 import time
 for input_folder in input_folders[:6]:
     x = time.time()
+<<<<<<< HEAD
     evaluate_video_tensor2(input_folder, train_mode=False)
     print (f"{time.time() - x}s")
     x = time.time()
     evaluate_video_tensor(input_folder)
+=======
+    # evaluate_video_tensor2(input_folder, train_mode=False)
+    # print (f"{time.time() - x}s")
+    # x = time.time()
+    evaluate_video(input_folder)
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
     print (f"{time.time() - x}s")
 
 
 
+<<<<<<< HEAD
 imfile1 = "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/images/-acp9Dk7Ve4_0000_S223_E320_L799_T97_R1151_B449/041.png"
 imfile2 = "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/images/-acp9Dk7Ve4_0000_S223_E320_L799_T97_R1151_B449/042.png"
 
@@ -162,6 +183,19 @@ fw_flow, bw_flow = compute_flow_tensor(image1, image2, model)
 fw_occ = detect_occlusion_tensor(bw_flow, fw_flow, train_mode)
 fw_occ = torch.stack([fw_occ, fw_occ, fw_occ], axis=1)
 evaluate_warp_error_tensor(image1, image2, fw_flow, fw_occ, flow_warping)
+=======
+# imfile1 = "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/images/-acp9Dk7Ve4_0000_S223_E320_L799_T97_R1151_B449/041.png"
+# imfile2 = "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/images/-acp9Dk7Ve4_0000_S223_E320_L799_T97_R1151_B449/042.png"
+
+# image1 = load_image(imfile1)
+# image2 = load_image(imfile2)
+
+# train_mode = False
+# fw_flow, bw_flow = compute_flow_tensor(image1, image2, model)
+# fw_occ = detect_occlusion_tensor(bw_flow, fw_flow, train_mode)
+# fw_occ = torch.stack([fw_occ, fw_occ, fw_occ], axis=1)
+# evaluate_warp_error_tensor(image1, image2, fw_flow, fw_occ, flow_warping)
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
 
 
 

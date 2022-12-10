@@ -7,10 +7,15 @@ from mmcv.runner import auto_fp16
 
 from mmedit.core import psnr, ssim, tensor2img
 from ..base import BaseModel
-from ..builder import build_backbone, build_component, build_loss
+from ..builder import build_backbone, build_loss
 from ..registry import MODELS
+<<<<<<< HEAD
 from ..backbones.sr_backbones.gfpgan.gfpganv1_clean_arch import GFPGANv1Clean
 from ..backbones.sr_backbones.gfpgan.gfpgan_net import GFPGANv1
+=======
+
+
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
 import torch
 import sys
 sys.path.append("/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT")
@@ -18,6 +23,10 @@ sys.path.append('/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestora
 from raft import RAFT
 from networks.resample2d_package.resample2d import Resample2d
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
     __getattr__ = dict.get
@@ -27,13 +36,10 @@ class dotdict(dict):
 @MODELS.register_module()
 class BasicRestorer(BaseModel):
     """Basic model for image restoration.
-
     It must contain a generator that takes an image as inputs and outputs a
     restored image. It also has a pixel-wise loss for training.
-
     The subclasses should overwrite the function `forward_train`,
     `forward_test` and `train_step`.
-
     Args:
         generator (dict): Config for the generator structure.
         pixel_loss (dict): Config for pixel-wise loss.
@@ -44,9 +50,15 @@ class BasicRestorer(BaseModel):
     allowed_metrics = {'PSNR': psnr, 'SSIM': ssim}
 
     def __init__(self,
-                 generator,
-                #  gfpgan,
+                generator,
+                 discriminator,
                  pixel_loss,
+                 l1_loss = None,
+                 pyramid_loss = None,
+                 perceptual_loss = None,
+                 gan_loss = None,
+                 gan_component_loss = None,
+                 identity_loss = None,
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
@@ -62,6 +74,18 @@ class BasicRestorer(BaseModel):
         self.generator = build_backbone(generator)
         self.init_weights(pretrained)
 
+        # init raft
+        args = {
+            'model': "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT/models/raft-things.pth",
+            'small': False,
+            'mixed_precision': False,
+            'alternate_corr': False,
+        }
+        args = dotdict(args)
+        self.raft = torch.nn.DataParallel(RAFT(args))
+        DEVICE = 'cuda'
+        self.flow_warping = Resample2d().to(DEVICE)
+        
         # init raft
         args = {
             'model': "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT/models/raft-things.pth",
@@ -91,7 +115,6 @@ class BasicRestorer(BaseModel):
 
     def init_weights(self, pretrained=None):
         """Init weights for models.
-
         Args:
             pretrained (str, optional): Path for pretrained weights. If given
                 None, pretrained weights will not be loaded. Defaults to None.
@@ -101,7 +124,6 @@ class BasicRestorer(BaseModel):
     @auto_fp16(apply_to=('lq', ))
     def forward(self, lq, gt=None, test_mode=False, **kwargs):
         """Forward function.
-
         Args:
             lq (Tensor): Input lq images.
             gt (Tensor): Ground-truth image. Default: None.
@@ -116,19 +138,14 @@ class BasicRestorer(BaseModel):
 
     def forward_train(self, lq, gt):
         """Training forward function.
-
         Args:
             lq (Tensor): LQ Tensor with shape (n, c, h, w).
             gt (Tensor): GT Tensor with shape (n, c, h, w).
-
         Returns:
             Tensor: Output tensor.
         """
         losses = dict()
         output = self.generator(lq)
-        # output, _ = self.gfpgan(output.flatten(0,1), return_rgb=False)
-        # output = output.reshape(gt.shape)
-
         loss_pix = self.pixel_loss(output, gt)
         losses['loss_pix'] = loss_pix
         outputs = dict(
@@ -139,11 +156,9 @@ class BasicRestorer(BaseModel):
 
     def evaluate(self, output, gt):
         """Evaluation function.
-
         Args:
             output (Tensor): Model output with shape (n, c, h, w).
             gt (Tensor): GT Tensor with shape (n, c, h, w).
-
         Returns:
             dict: Evaluation results.
         """
@@ -166,7 +181,6 @@ class BasicRestorer(BaseModel):
                      save_path=None,
                      iteration=None):
         """Testing forward function.
-
         Args:
             lq (Tensor): LQ Tensor with shape (n, c, h, w).
             gt (Tensor): GT Tensor with shape (n, c, h, w). Default: None.
@@ -174,7 +188,6 @@ class BasicRestorer(BaseModel):
             save_path (str): Path to save image. Default: None.
             iteration (int): Iteration for the saving image name.
                 Default: None.
-
         Returns:
             dict: Output results.
         """
@@ -206,10 +219,8 @@ class BasicRestorer(BaseModel):
 
     def forward_dummy(self, img):
         """Used for computing network FLOPs.
-
         Args:
             img (Tensor): Input image.
-
         Returns:
             Tensor: Output image.
         """
@@ -218,11 +229,9 @@ class BasicRestorer(BaseModel):
 
     def train_step(self, data_batch, optimizer):
         """Train step.
-
         Args:
             data_batch (dict): A batch of data.
             optimizer (obj): Optimizer.
-
         Returns:
             dict: Returned output.
         """
@@ -239,13 +248,11 @@ class BasicRestorer(BaseModel):
 
     def val_step(self, data_batch, **kwargs):
         """Validation step.
-
         Args:
             data_batch (dict): A batch of data.
             kwargs (dict): Other arguments for ``val_step``.
-
         Returns:
             dict: Returned output.
         """
         output = self.forward_test(**data_batch, **kwargs)
-        return output
+        return 

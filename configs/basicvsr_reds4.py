@@ -1,4 +1,4 @@
-exp_name = 'BasicVSR_GFPGAN_1'
+exp_name = 'BasicVSR_GFPGAN_w_facial_component_stable_loss'
 
 # model settings
 model = dict(
@@ -16,7 +16,11 @@ model = dict(
                 channel_multiplier=1,
                 resample_kernel=[1, 3, 3, 1],
                 # decoder_load_path="experiments/pretrained_models/StyleGAN2_512_Cmul1_FFHQ_B12G4_scratch_800k.pth",
+<<<<<<< HEAD
                 pretrained= "/tmp/net_g_505000.pth",
+=======
+                pretrained= "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/tmp2/net_g_505000.pth",
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
                 fix_decoder=True,
                 num_mlp=8,
                 lr_mlp=0.01,
@@ -169,6 +173,6 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/{exp_name}'
 load_from = None
-resume_from = None
+resume_from = "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/work_dirs/BasicVSR_GFPGAN_stable_loss_2/latest.pth"
 workflow = [('train', 1)]
 find_unused_parameters = True

@@ -9,6 +9,10 @@ import torch
 from mmedit.core import tensor2img
 from ..registry import MODELS
 from .basic_restorer import BasicRestorer
+<<<<<<< HEAD
+=======
+from collections import OrderedDict
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
 
 import math
 import sys
@@ -17,13 +21,20 @@ sys.path.append('/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestora
 from raft import RAFT
 from utils import flow_viz
 from utils.utils import InputPadder
+<<<<<<< HEAD
 from utils.flownet import detect_occlusion_tensor, resize_flow, tensor2img, read_img, save_img, img2tensor
+=======
+from utils.flownet import detect_occlusion_tensor, resize_flow, tensor2img as ts2im, read_img, save_img, img2tensor
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
 from networks.resample2d_package.resample2d import Resample2d
 
 def compute_flow_tensor(image1, image2, model=None, train_mode=False):
     with torch.set_grad_enabled(train_mode):
+<<<<<<< HEAD
         padder = InputPadder(image1.shape)
         image1, image2 = padder.pad(image1, image2)
+=======
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
         _, fw_flow_up = model(image1, image2, iters=20, test_mode=True)
         _, bw_flow_up = model(image2, image1, iters=20, test_mode=True)
 
@@ -32,6 +43,7 @@ def compute_flow_tensor(image1, image2, model=None, train_mode=False):
 def evaluate_warp_error_tensor(image1, image2, flow, occ_mask, flow_warping, train_mode=False):
     noc_mask = 1 - occ_mask
     with torch.set_grad_enabled(train_mode):
+<<<<<<< HEAD
         warp_image2 = flow_warping(image2, flow)
 
     ## compute warping error
@@ -43,6 +55,16 @@ def evaluate_warp_error_tensor(image1, image2, flow, occ_mask, flow_warping, tra
     if N == 0:
         N = diff.shape[0] * diff.shape[1] * diff.shape[2] * diff.shape[3]
     print (f"torch.sum(torch.square(diff)) / N: {torch.sum(torch.square(diff)) / N}")
+=======
+        warp_image2 = flow_warping(image2/255.0, flow)
+
+    ## compute warping error
+    diff = torch.multiply(warp_image2 - image1/255.0, noc_mask)
+    N = torch.sum(noc_mask)
+    if N == 0:
+        N = diff.shape[0] * diff.shape[1] * diff.shape[2] * diff.shape[3]
+    
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
     return torch.sum(torch.square(diff)) / N
 
 @MODELS.register_module()
@@ -81,8 +103,8 @@ class BasicVSR(BasicRestorer):
         self.is_weight_fixed = False
         self.is_gfp_weight_fixed = False
         # count training steps
-        self.register_buffer('step_counter', torch.zeros(1))
-
+        self.register_buffer('current_iter', torch.ones(1))
+        
         # ensemble
         self.forward_ensemble = None
         if ensemble is not None:
@@ -126,32 +148,33 @@ class BasicVSR(BasicRestorer):
             dict: Returned output.
         """
         # fix SPyNet and EDVR at the beginning
-        if self.step_counter < self.fix_iter:
+        if self.current_iter < self.fix_iter:
             if not self.is_weight_fixed:
                 self.is_weight_fixed = True
                 for k, v in self.generator.named_parameters():
                     if 'spynet' in k or 'edvr' in k:
                         v.requires_grad_(False)
-        elif self.step_counter == self.fix_iter:
+        elif self.current_iter == self.fix_iter:
             # train all the parameters
             for k, v in self.generator.named_parameters():
                 if 'spynet' in k or 'edvr' in k:
                     v.requires_grad_(True)
 
         #Fix GFPGAM at the beginning
-        if self.step_counter < self.gfp_fix_iter:
+        if self.current_iter < self.gfp_fix_iter:
             if not self.is_gfp_weight_fixed:
                 self.is_gfp_weight_fixed = True
                 for k, v in self.generator.named_parameters():
                     if 'gfp' in k:
                         v.requires_grad_(False)
-        elif self.step_counter >= self.fix_iter:
+        elif self.current_iter >= self.fix_iter:
             # train all the parameters
             # self.generator.requires_grad_(True)
             for k, v in self.generator.named_parameters():
                 if 'gfp' in k:
                     v.requires_grad_(True)
 
+<<<<<<< HEAD
 
         lq = data_batch.get('lq')
         gt = data_batch.get('gt')
@@ -224,6 +247,49 @@ class BasicVSR(BasicRestorer):
 
         self.step_counter += 1
 
+=======
+        lq = data_batch.get('lq')
+        gt = data_batch.get('gt')
+        meta = data_batch.get('meta')
+        gt = gt.flatten(0,1)
+        
+        output, _ = self.generator(lq, return_rgb=False)
+        l_g_total = 0
+        loss_dict = OrderedDict()
+        
+        l_g_pix = self.pixel_loss(output, gt)
+        l_g_total += l_g_pix
+        loss_dict['l_g_pix'] = l_g_pix.detach().cpu()
+
+        err = torch.tensor(0.0, device=output.device)
+        train_mode = True        
+        images1 = output.squeeze(0)[:-1]
+        images2 = output.squeeze(0)[1:]
+
+        if (torch.all(images1 < 255) and torch.all(images1 > -255) and torch.all(images2 < 255) and torch.all(images2 > -255)):
+            fw_flows, bw_flows = compute_flow_tensor(images1, images2, self.raft, train_mode)
+            fw_occs = detect_occlusion_tensor(bw_flows, fw_flows, train_mode)
+            fw_occs = torch.stack([fw_occs, fw_occs, fw_occs], axis=1)
+            err += evaluate_warp_error_tensor(images1, images2, fw_flows, fw_occs, self.flow_warping, train_mode)
+            # compute stable loss
+            l_g_total += err * 1000000
+            loss_dict['loss_stable'] = err.detach().cpu() * 1000000
+
+
+        #outputs = self(**data_batch, test_mode=False)
+        #loss, log_vars = self.parse_losses(outputs.pop('losses'))
+
+        #Backward
+        optimizer['generator'].zero_grad()
+        l_g_total.backward()
+        optimizer['generator'].step()
+
+        gt = gt.reshape(lq.shape)
+        output = output.reshape(lq.shape)
+        
+        self.current_iter += 1
+        
+>>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
         return dict(
             log_vars = loss_dict,
             num_samples = 1,
@@ -286,10 +352,8 @@ class BasicVSR(BasicRestorer):
             dict: Output results.
         """
         with torch.no_grad():
-            if self.forward_ensemble is not None:
-                output = self.forward_ensemble(lq, self.generator)
-            else:
-                output = self.generator(lq)
+            output, _ = self.generator(lq, return_rgb=False)
+        output = output.reshape(lq.size())
 
         # If the GT is an image (i.e. the center frame), the output sequence is
         # turned to an image.
