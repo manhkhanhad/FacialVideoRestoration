@@ -27,6 +27,27 @@ from utils.utils import InputPadder
 from utils.flownet import detect_occlusion_tensor, resize_flow, tensor2img as ts2im, read_img, save_img, img2tensor
 from networks.resample2d_package.resample2d import Resample2d
 
+
+def compute_flow_tensor(image1, image2, model=None, train_mode=False):
+    with torch.set_grad_enabled(train_mode):
+        _, fw_flow_up = model(image1, image2, iters=20, test_mode=True)
+        _, bw_flow_up = model(image2, image1, iters=20, test_mode=True)
+
+    return fw_flow_up, bw_flow_up
+
+def evaluate_warp_error_tensor(image1, image2, flow, occ_mask, flow_warping, train_mode=False):
+    noc_mask = 1 - occ_mask
+    with torch.set_grad_enabled(train_mode):
+        warp_image2 = flow_warping(image2/255.0, flow)
+
+    ## compute warping error
+    diff = torch.multiply(warp_image2 - image1/255.0, noc_mask)
+    N = torch.sum(noc_mask)
+    if N == 0:
+        N = diff.shape[0] * diff.shape[1] * diff.shape[2] * diff.shape[3]
+    
+    return torch.sum(torch.square(diff)) / N
+
 @MODELS.register_module()
 class STERR_GAN(BasicRestorer):
     """Basic model for image restoration.

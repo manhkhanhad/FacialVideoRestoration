@@ -345,6 +345,7 @@ class PairedRandomCrop:
 
     def __init__(self, gt_patch_size):
         self.gt_patch_size = gt_patch_size
+        
 
     def __call__(self, results):
         """Call function.
@@ -398,6 +399,7 @@ class PairedRandomCrop:
             results['lq'] = results['lq'][0]
         if not gt_is_list:
             results['gt'] = results['gt'][0]
+        results['resize_shape'] = self.gt_patch_size
         return results
 
     def __repr__(self):
