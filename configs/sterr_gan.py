@@ -1,4 +1,4 @@
-exp_name = 'BasicVSR_GFPGAN_facial_w_component_stable_loss'
+exp_name = 'BasicVSR_GFPGAN_facial_w_component'
 
 # model settings
 model = dict(
@@ -16,7 +16,7 @@ model = dict(
                 channel_multiplier=1,
                 resample_kernel=[1, 3, 3, 1],
                 # decoder_load_path="experiments/pretrained_models/StyleGAN2_512_Cmul1_FFHQ_B12G4_scratch_800k.pth",
-                pretrained= "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/pretraineds/net_g_435000.pth",
+                pretrained= "/home/ldtuan/VideoRestoration/GFPGAN/experiments/finetune2_GFPGAN_TalkingHead_w_facial_components/models/net_g_435000.pth",
                 fix_decoder=True,
                 num_mlp=8,
                 lr_mlp=0.01,
@@ -31,26 +31,26 @@ model = dict(
             out_size=256,
             channel_multiplier=1,
             resample_kernel=[1, 3, 3, 1],
-            pretrained="/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/pretraineds/net_d_435000.pth"
+            pretrained="/home/ldtuan/VideoRestoration/GFPGAN/experiments/finetune2_GFPGAN_TalkingHead_w_facial_components/models/net_d_435000.pth"
         ),
         net_d_left_eye=dict(
             type='FacialComponentDiscriminator',
-            pretrained="/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/pretraineds/net_d_left_eye_435000.pth",
+            pretrained="/home/ldtuan/VideoRestoration/GFPGAN/experiments/finetune2_GFPGAN_TalkingHead_w_facial_components/models/net_d_left_eye_435000.pth",
         ),
         net_d_right_eye=dict(
             type='FacialComponentDiscriminator',
-            pretrained="/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/pretraineds/net_d_right_eye_435000.pth",
+            pretrained="/home/ldtuan/VideoRestoration/GFPGAN/experiments/finetune2_GFPGAN_TalkingHead_w_facial_components/models/net_d_right_eye_435000.pth",
         ),
         net_d_mouth=dict(
             type='FacialComponentDiscriminator',
-            pretrained="/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/pretraineds/net_d_mouth_435000.pth",
+            pretrained="/home/ldtuan/VideoRestoration/GFPGAN/experiments/finetune2_GFPGAN_TalkingHead_w_facial_components/models/net_d_mouth_435000.pth",
         ),
         net_identity=dict(
             type="ResNetArcFace",
             block="IRBlock",
             layers=[2, 2, 2, 2],
             use_se=False,
-            pretrained="/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/pretraineds/arcface_resnet18.pth"
+            pretrained="/home/ldtuan/VideoRestoration/GFPGAN/experiments/pretrained_models/arcface_resnet18.pth"
         )
     ),
     pixel_loss=dict(type='CharbonnierLoss', loss_weight=0.1, reduction='mean'),
@@ -93,7 +93,7 @@ test_cfg = dict(metrics=['PSNR', 'SSIM'], crop_border=0)
 #         key='gt',
 #         channel_order='rgb'),
 #     dict(type='Resize',keys=['lq', 'gt'], scale=(256, 256), keep_ratio=False),  
-#     dict(type='LoadFacialComponent', component_file='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/train_video.json'),
+#     dict(type='LoadFacialComponent', component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/train_video.json'),
 #     # Do hiện tại data có video < 256 nên khi chay random crop ở dưới bị lỗi nên tạm thời resize video lại
 #     #Khi có data chuẩn >256 thì sửa lại code line 155 ở /home/ldtuan/VideoRestoration/BasicVSR_PlusPlus/mmedit/datasets/pipelines/augmentation.py
 #     dict(type='RescaleToZeroOne', keys=['lq', 'gt']),
@@ -153,9 +153,9 @@ test_cfg = dict(metrics=['PSNR', 'SSIM'], crop_border=0)
 #         times=1000,
 #         dataset=dict(
 #             type=train_dataset_type,
-#             lq_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/train/input',
-#             gt_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/train/output',
-#             component_file='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/train_video.json',
+#             lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/input',
+#             gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/output',
+#             component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/train_video.json',
 #             num_input_frames=4,
 #             pipeline=train_pipeline,
 #             scale=1,
@@ -163,9 +163,9 @@ test_cfg = dict(metrics=['PSNR', 'SSIM'], crop_border=0)
 #     # val
 #     val=dict(
 #         type=val_dataset_type,
-#         lq_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/input',
-#         gt_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/output',
-#         component_file='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test_video.json',
+#         lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/input',
+#         gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/output',
+#         component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/test_video.json',
 #         num_input_frames=30,
 #         pipeline=test_pipeline,
 #         scale=1,
@@ -174,8 +174,8 @@ test_cfg = dict(metrics=['PSNR', 'SSIM'], crop_border=0)
 #     # test
 #     test=dict(
 #         type=val_dataset_type,
-#         lq_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/input',
-#         gt_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/output',
+#         lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/input',
+#         gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/output',
 #         num_input_frames=30,
 #         pipeline=test_pipeline,
 #         scale=1,
@@ -252,7 +252,7 @@ train_pipeline = [
         key='gt',
         channel_order='rgb'),
     dict(type='Resize',keys=['lq', 'gt'], scale=(256, 256), keep_ratio=False),  
-    dict(type='LoadFacialComponent', component_file='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/train_video.json'),
+    dict(type='LoadFacialComponent', component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/train_video.json'),
     # Do hiện tại data có video < 256 nên khi chay random crop ở dưới bị lỗi nên tạm thời resize video lại
     #Khi có data chuẩn >256 thì sửa lại code line 155 ở /home/ldtuan/VideoRestoration/BasicVSR_PlusPlus/mmedit/datasets/pipelines/augmentation.py
     dict(type='RescaleToZeroOne', keys=['lq', 'gt']),
@@ -295,6 +295,7 @@ demo_pipeline = [
         io_backend='disk',
         key='lq',
         channel_order='rgb'),
+    dict(type='Resize',keys=['lq', 'gt'], scale=(256, 256), keep_ratio=False),
     dict(type='RescaleToZeroOne', keys=['lq']),
     dict(type='FramesToTensor', keys=['lq']),
     dict(type='Collect', keys=['lq'], meta_keys=['lq_path', 'key'])
@@ -312,9 +313,9 @@ data = dict(
         times=1000,
         dataset=dict(
             type=train_dataset_type,
-            lq_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/train/input',
-            gt_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/train/output',
-            component_file='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/pretraineds/train_video.json',
+            lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/input',
+            gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/train/output',
+            component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/train_video.json',
             num_input_frames=4,
             pipeline=train_pipeline,
             scale=1,
@@ -322,9 +323,9 @@ data = dict(
     # val
     val=dict(
         type=val_dataset_type,
-        lq_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/input',
-        gt_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/output',
-        component_file='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/pretraineds/test_video.json',
+        lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/input',
+        gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/output',
+        component_file='/home/ldtuan/VideoRestoration/dataset/official_degradation/test_video.json',
         num_input_frames=30,
         pipeline=test_pipeline,
         scale=1,
@@ -333,9 +334,9 @@ data = dict(
     # test
     test=dict(
         type=val_dataset_type,
-        lq_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/input',
-        gt_folder='/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/output',
-        num_input_frames=30,
+        lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/input',
+        gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/output',
+        num_input_frames=None,
         pipeline=test_pipeline,
         scale=1,
         # val_partition='REDS4',

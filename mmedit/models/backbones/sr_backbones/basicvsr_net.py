@@ -176,20 +176,11 @@ class BasicVSRNet(nn.Module):
         # outputs = []
         # for i in range(5):
         #     outputs.append(torch.rand(1,32,256,256))
-<<<<<<< HEAD
-        output, _ = self.gfpgan(torch.cat(outputs,0), return_rgb=False)
-        # output = output.reshape(lrs.size())
-
-        # return torch.stack(outputs, dim=1)
-        return output
-        # return output, flows_forward, flows_backward
-=======
         output, rgb = self.gfpgan(torch.cat(outputs,0), return_rgb=return_rgb)
         # output = output.reshape(lrs.size())
 
         # return torch.stack(outputs, dim=1)
         return output, rgb
->>>>>>> 6ee45b691b0a0a284bd86c59ec0290c0c54ed4e6
 
     def init_weights(self, pretrained=None, strict=True):
         """Init weights for models.
