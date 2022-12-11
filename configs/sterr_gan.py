@@ -295,6 +295,7 @@ demo_pipeline = [
         io_backend='disk',
         key='lq',
         channel_order='rgb'),
+    dict(type='Resize',keys=['lq', 'gt'], scale=(256, 256), keep_ratio=False),
     dict(type='RescaleToZeroOne', keys=['lq']),
     dict(type='FramesToTensor', keys=['lq']),
     dict(type='Collect', keys=['lq'], meta_keys=['lq_path', 'key'])
@@ -335,7 +336,7 @@ data = dict(
         type=val_dataset_type,
         lq_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/input',
         gt_folder='/home/ldtuan/VideoRestoration/dataset/official_degradation/test/output',
-        num_input_frames=30,
+        num_input_frames=None,
         pipeline=test_pipeline,
         scale=1,
         # val_partition='REDS4',

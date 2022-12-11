@@ -214,7 +214,7 @@ class STERR_GAN(BasicRestorer):
         Returns:
             dict: Output results.
         """
-        with torch.no_grad():
+        with torch.no_grad():  
             output, _ = self.generator(lq, return_rgb=False)
         output = output.reshape(lq.size())
 
@@ -266,6 +266,7 @@ class STERR_GAN(BasicRestorer):
                         tensor2img(output[:, i, :, :, :]), save_path_i)
 
         return results
+        
     
     def forward_dummy(self, img):
         """Used for computing network FLOPs.
@@ -284,7 +285,7 @@ class STERR_GAN(BasicRestorer):
         if self.current_iter < self.fix_iter:
             if not self.is_weight_fixed:
                 self.is_weight_fixed = True
-                for k, v in self.generator.named_parameters():
+                for k, v in self.generatogr.named_parameters():
                     if 'spynet' in k or 'edvr' in k:
                         v.requires_grad_(False)
         elif self.current_iter == self.fix_iter:

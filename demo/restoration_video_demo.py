@@ -80,6 +80,7 @@ def main():
             save_path_i = f'{args.output_dir}/{args.filename_tmpl.format(i)}'
 
             mmcv.imwrite(output_i, save_path_i)
+            print(f"save to {save_path_i}")
 
 
 if __name__ == '__main__':

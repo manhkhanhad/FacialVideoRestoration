@@ -102,8 +102,7 @@ def restoration_video_inference(model,
             lq_path=lq_folder,
             gt_path='',
             key=key,
-            sequence_length=30)
-        print ("hehe ", data)
+            sequence_length=sequence_length)
 
     # compose the pipeline
     test_pipeline = Compose(test_pipeline)
@@ -113,13 +112,19 @@ def restoration_video_inference(model,
     print (data.shape)
     # forward the model
     with torch.no_grad():
-        if window_size > 0:  # sliding window framework
-            data = pad_sequence(data, window_size)
+        if window_size > 0:  # sliding window framework            
             result = []
-            for i in range(0, data.size(1) - 2 * (window_size // 2)):
-                data_i = data[:, i:i + window_size].to(device)
-                result.append(model(lq=data_i, test_mode=True)['output'].cpu())
-            result = torch.stack(result, dim=1)
+            for sub_seq in data.split(window_size, 1):
+                result.append(model(lq=sub_seq.to(device), test_mode=True)['output'].cpu())
+            result = torch.cat(result, dim=1)
+            # data = pad_sequence(data, window_size)
+            # result = []
+            # for i in range(0, data.size(1) - 2 * (window_size // 2)):
+            #     data_i = data[:, i:i + window_size].to(device)
+            #     result.append(model(lq=data_i, test_mode=True)['output'].cpu())
+            # breakpoint()
+            # result = torch.stack(result, dim=1)
+            
         else:  # recurrent framework
             if max_seq_len is None:
                 result = model(

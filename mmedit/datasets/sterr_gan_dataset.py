@@ -72,7 +72,7 @@ class SSTERR_GANDataset(BaseSRDataset):
 
         self.data_infos = self.load_annotations()
         self.components_list = self.load_components_list(component_file)
-    
+        
     def load_components_list(self, component_file):
         with open(component_file, 'r') as f:
             component_list = json.load(f)
