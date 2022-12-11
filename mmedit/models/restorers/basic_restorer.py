@@ -13,8 +13,8 @@ from ..registry import MODELS
 
 import torch
 import sys
-sys.path.append("/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT")
-sys.path.append('/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/RAFT/core')
+sys.path.append("/home/ldtuan/VideoRestoration/STERR-GAN/RAFT")
+sys.path.append('/home/ldtuan/VideoRestoration/STERR-GAN/RAFT/core')
 from raft import RAFT
 from networks.resample2d_package.resample2d import Resample2d
 

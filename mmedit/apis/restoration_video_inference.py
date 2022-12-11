@@ -102,7 +102,7 @@ def restoration_video_inference(model,
             lq_path=lq_folder,
             gt_path='',
             key=key,
-            sequence_length=30)
+            sequence_length=sequence_length)
         print ("hehe ", data)
 
     # compose the pipeline
@@ -127,9 +127,21 @@ def restoration_video_inference(model,
             else:
                 result = []
                 for i in range(0, data.size(1), max_seq_len):
-                    result.append(
-                        model(
-                            lq=data[:, i:i + max_seq_len].to(device),
-                            test_mode=True)['output'].cpu())
+                    sub_sequence = data[:, i:i + max_seq_len]
+                    if sub_sequence.shape[1] == 1:
+                        sub_sequence = data[:, i-1:i + max_seq_len]
+                        
+                        res_sub_sequence = model(
+                            sub_sequence.to(device),
+                            test_mode=True)['output'].cpu()
+                        res_sub_sequence = res_sub_sequence[:,-1].unsqueeze(1)
+                        
+                        
+                    res_sub_sequence = model(
+                            sub_sequence.to(device),
+                            test_mode=True)['output'].cpu()
+                    result.append(res_sub_sequence)
+                        
+                        
                 result = torch.cat(result, dim=1)
     return result
