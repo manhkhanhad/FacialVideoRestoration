@@ -135,12 +135,13 @@ def restoration_video_inference(model,
                         res_sub_sequence = model(
                             sub_sequence.to(device),
                             test_mode=True)['output'].cpu()
-                        res_sub_sequence = res_sub_sequence[:,-1,:,:]
+                        res_sub_sequence = res_sub_sequence[:,-1].unsqueeze(1)
+                        
                         
                     res_sub_sequence = model(
                             sub_sequence.to(device),
                             test_mode=True)['output'].cpu()
-                    result.append(res_sub_sequence[:,-1].unsqueeze(1))
+                    result.append(res_sub_sequence)
                         
                         
                 result = torch.cat(result, dim=1)
