@@ -15,7 +15,7 @@ DEVICE = 'cuda'
 
 def load_image(imfile):
     img = np.array(Image.open(imfile)).astype(np.uint8)
-    img = torch.from_numpy(img).permute(2, 0, 1).float()
+    img = torch.from_numpy(img).permute(2, 0, 1).contiguous().float()
     return img[None].to(DEVICE)
 
 def compute_flow(image1, image2, model, train_mode=False):
@@ -105,7 +105,8 @@ def evaluate_video_tensor(folder_path, train_mode=False):
     
 def evaluate_video_tensor2(folder_path, train_mode=False):
     images = glob.glob(os.path.join(folder_path, "*.png"))
-    images = sorted(images)[:30]
+    # images = sorted(images)[:30]
+    images = sorted(images)
     err = 0
     images = torch.stack([load_image(imfile).squeeze(0) for imfile in images])
     images1 = images[:-1]
@@ -137,18 +138,25 @@ flow_warping = Resample2d().to(DEVICE)
 
 # input_folder_root = "./data/"
 # input_folder_root = "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/STERR-GAN/data/test/output/"
-input_folder_root = "/mmlabworkspace/WorkSpaces/danhnt/tuyensh/khanhngo/VideoRestoration/VideoRestoration/Test/results/images/"
-input_folders = [os.path.join(input_folder_root, folder) for folder in os.listdir(input_folder_root)]
+input_folder_root = "/home/ldtuan/Test/results/images/"
+# input_folders = [os.path.join(input_folder_root, folder) for folder in os.listdir(input_folder_root)]
+import glob
+input_folders = glob.glob("/home/ldtuan/Test/results/images/*remaster*") 
 input_folders.sort()
 
+
 import time
-for input_folder in input_folders[:6]:
-    x = time.time()
-    # evaluate_video_tensor2(input_folder, train_mode=False)
+for input_folder in input_folders:
+    # x = time.time()
+    try:
+        # evaluate_video_tensor2(input_folder, train_mode=False)
+        evaluate_video(input_folder, train_mode=False)
+    except Exception as e:
+        print (input_folder, e)
     # print (f"{time.time() - x}s")
     # x = time.time()
-    evaluate_video(input_folder)
-    print (f"{time.time() - x}s")
+    # evaluate_video(input_folder)
+    # print (f"{time.time() - x}s")
 
 
 
