@@ -11,7 +11,9 @@ from mmedit.models.backbones.sr_backbones.basicvsr_net import (
 from mmedit.models.common import PixelShufflePack, flow_warp
 from mmedit.models.registry import BACKBONES
 from mmedit.utils import get_root_logger
-
+from .gfpgan.gfpgan_net import GFPGANv1
+from .gfpgan.gfpganv1_clean_arch import GFPGANv1Clean
+from basicsr.archs.stylegan2_arch import ConvLayer
 
 @BACKBONES.register_module()
 class BasicVSRPlusPlus(nn.Module):
@@ -48,7 +50,8 @@ class BasicVSRPlusPlus(nn.Module):
                  max_residue_magnitude=10,
                  is_low_res_input=True,
                  spynet_pretrained=None,
-                 cpu_cache_length=100):
+                 cpu_cache_length=100,
+                gfpgan=None):
 
         super().__init__()
         self.mid_channels = mid_channels
@@ -87,10 +90,10 @@ class BasicVSRPlusPlus(nn.Module):
         # upsampling module
         self.reconstruction = ResidualBlocksWithInputConv(
             5 * mid_channels, mid_channels, 5)
-        self.upsample1 = PixelShufflePack(
-            mid_channels, mid_channels, 2, upsample_kernel=3)
-        self.upsample2 = PixelShufflePack(
-            mid_channels, 64, 2, upsample_kernel=3)
+        # self.upsample1 = PixelShufflePack(
+        #     mid_channels, mid_channels, 2, upsample_kernel=3)
+        # self.upsample2 = PixelShufflePack(
+        #     mid_channels, 64, 2, upsample_kernel=3)
         self.conv_hr = nn.Conv2d(64, 64, 3, 1, 1)
         self.conv_last = nn.Conv2d(64, 3, 3, 1, 1)
         self.img_upsample = nn.Upsample(
@@ -101,6 +104,9 @@ class BasicVSRPlusPlus(nn.Module):
 
         # check if the sequence is augmented by flipping
         self.is_mirror_extended = False
+        self.gfpgan = GFPGANv1(**gfpgan)
+        
+        
 
     def check_if_mirror_extended(self, lqs):
         """Check whether the input is a mirror-extended sequence.
@@ -264,11 +270,14 @@ class BasicVSRPlusPlus(nn.Module):
             if self.cpu_cache:
                 hr = hr.cuda()
 
+            breakpoint()
+            
             hr = self.reconstruction(hr)
-            hr = self.lrelu(self.upsample1(hr))
-            hr = self.lrelu(self.upsample2(hr))
-            hr = self.lrelu(self.conv_hr(hr))
-            hr = self.conv_last(hr)
+            # hr = self.lrelu(self.upsample1(hr))
+            # hr = self.lrelu(self.upsample2(hr))
+            # hr = self.lrelu(self.conv_hr(hr))
+            # hr = self.conv_last(hr)
+            
             if self.is_low_res_input:
                 hr += self.img_upsample(lqs[:, i, :, :, :])
             else:
