@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description"
+        content="Spatio-temporal Re-rendering for Antique Facial Video Restoration">
+  <meta name="keywords" content="Facial Video Restoration, Old films restoration, GAN">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STERR-GAN: Spatio-temporal Re-rendering for Antique Facial Video Restoration</title>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-PYVRSFMDRL"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+
+    function gtag() {
+      dataLayer.push(arguments);
+    }
+
+    gtag('js', new Date());
+
+    gtag('config', 'G-PYVRSFMDRL');
+  </script>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+        rel="stylesheet">
+
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="icon" href="static\images\favicon-32x32.png">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="./static/js/bulma-carousel.min.js"></script>
+  <script src="./static/js/bulma-slider.min.js"></script>
+  <script src="./static/js/index.js"></script>
+</head>
+<body>
+
+<nav class="navbar" role="navigation" aria-label="main navigation">
+  <div class="navbar-brand">
+    <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+    </a>
+  </div>
+  <div class="navbar-menu">
+    <div class="navbar-start" style="flex-grow: 1; justify-content: center;">
+      <a class="navbar-item" href="https://keunhong.com">
+      <span class="icon">
+          <i class="fas fa-home"></i>
+      </span>
+      </a>
+
+      <div class="navbar-item has-dropdown is-hoverable">
+        <a class="navbar-link">
+          More Research
+        </a>
+        <div class="navbar-dropdown">
+          <a class="navbar-item" href="https://ieeexplore.ieee.org/document/9924704">
+            Antique image restoration
+          </a>
+          <a class="navbar-item" href="https://github.com/HoSyTuyen/MultilingualGAN">
+            Multilingual-GAN
+          </a>
+          <a class="navbar-item" href="https://github.com/HoSyTuyen/APGAN">
+            Cartoonizing Portrait Image
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">STERR-GAN: Spatio-temporal Re-rendering for Antique Facial Video Restoration</h1>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              <a href="https://keunhong.com">Manh-Khanh Ngo Huu</a><sup>*</sup>,</span>
+            <span class="author-block">
+              <a href="https://utkarshsinha.com">Vinh Quang Ngo</a><sup>*</sup>,</span>
+            <span class="author-block">
+              <a href="https://jonbarron.info">Vinh Tiep Nguyen</a><sup></sup>,
+            </span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>1</sup>University of Information Technology, HCM-VNU</span>
+          </div>
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <!-- PDF Link. -->
+              <span class="link-block">
+                <a href="None"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-file-pdf"></i>
+                  </span>
+                  <span>Paper</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="None"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="ai ai-arxiv"></i>
+                  </span>
+                  <span>arXiv</span>
+                </a>
+              </span>
+              <!-- Video Link. -->
+              <span class="link-block">
+                <a href="None"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-youtube"></i>
+                  </span>
+                  <span>Video</span>
+                </a>
+              </span>
+              <!-- Code Link. -->
+              <span class="link-block">
+                <a href="None"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-github"></i>
+                  </span>
+                  <span>Code</span>
+                  </a>
+              </span>
+              <!-- Dataset Link. -->
+              <span class="link-block">
+                <a href="None"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="far fa-images"></i>
+                  </span>
+                  <span>Data</span>
+                  </a>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <video id="teaser" autoplay muted loop playsinline height="100%">
+        <source src="./static/videos/result/teaser.mp4"
+                type="video/mp4">
+      </video>
+      <h2 class="subtitle has-text-centered">
+        <span class="dnerf">STERR-GAN</span> restores old facial films with various deterioration, such as low-resolution, noise,
+        blur, compression artifacts, etc. to high-quality videos. The results are comparable to the state-of-the-art methods.
+      </h2>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Abstract. -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            Facial old films are an essential part of our cultural heritage and can provide valuable imagination of historical figures. 
+            However, over time, films can become degraded and damaged, making them difficult or impossible to watch. Film restoration is 
+            the process of repairing and preserving old films so that future generations can enjoy them. Not limited to preserving historical video footage,
+             video restoration can apply to our life, such as security, crime prevention, and investigation.
+          </p>
+          <p>
+            Despite the fact that there are some research on facial image restoration, the work on facial video restoration still inadequate. 
+            In this thesis, we focus on facial video restoration, with the input is a video of faces that suffer from various deterioration issues, 
+            such as scratches, film grain noise,  monochrome, and the output is its color high-quality video.
+          </p>
+          <p>
+            From our observation, recent facial image restoration models can recover faces from old images. Still, they are designed for image restoration and do
+             not leverage temporal information, as a result, it struggles with flickering problems. We propose Spatio-temporal Re-rendering for Antique Facial Video 
+             Restoration (STERR-GAN), which (1) adopts a generative prior for facial restoration ("Re-rendering" term) and (2) spatial information ("Spatio-temporal" term) 
+             to avoid flickering artifact. Besides proposing a new design, we also utilize stable loss to enhance the illumance stability of result videos. 
+          </p>
+          <p>
+            In addition, we find out that there are many datasets for video restoration task or facial image restoration task, but the dataset for facial video restoration is insufficient.
+             Hence, we introduce Video dataset for Antique Restoration (VAR). We believe that it will be a valuable resource for measuring the performance of future models
+              and advancing research in this study area.
+          </p>
+        </div>
+      </div>
+    </div>
+    <!--/ Framework-->
+    <div>
+      <img src="static\images\Chapter4_STERR_GAN_framework.png">
+    </div>
+
+    <!-- Paper video. -->
+    <!-- <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Video</h2>
+        <div class="publication-video">
+          <iframe src="https://www.youtube.com/embed/MrKrnHhk8IA?rel=0&amp;showinfo=0"
+                  frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        </div>
+      </div>
+    </div> -->
+    <!--/ Paper video. -->
+  </div>
+</section>
+
+<section class="hero is-light is-small">
+  <div class="hero-body">
+    <div class="container">
+      <div class="columns is-centered has-text-centered">
+      <h2 class="title is-2">More results</h2>
+      </div>
+      <div id="results-carousel" class="carousel results-carousel">
+        <div class="item item-steve">
+          <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/-cNe_z2qsGQ_0000_S1010_E1114_L893_T112_R1213_B432.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-chair-tp">
+          <video poster="" id="chair-tp" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/1z2ZTPZEx1E_0000_S1429_E1520_L539_T0_R907_B352.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-shiba">
+          <video poster="" id="shiba" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/5u-Aw6NOIy0_0000_S125_E207_L645_T62_R1029_B446.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-fullbody">
+          <video poster="" id="fullbody" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/8xhqhC_PHzE_0004_S226_E320_L763_T74_R1019_B330.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-blueshirt">
+          <video poster="" id="blueshirt" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/Bio8ZpEFlqY_0000_S1031_E1157_L676_T51_R1012_B387.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-mask">
+          <video poster="" id="mask" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/c1H__IGGs8E_0000_S1257_E1351_L502_T1_R934_B433.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-coffee">
+          <video poster="" id="coffee" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/-cNe_z2qsGQ_0000_S1010_E1114_L893_T112_R1213_B432.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-toby">
+          <video poster="" id="toby" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/dd03Lj8KOjA_0000_S737_E832_L804_T161_R1156_B513.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+
+        <div class="item item-1">
+          <video poster="" id="1" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/exsaT4HrbhA_0000_S1280_E1418_L698_T48_R1034_B384.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-2">
+          <video poster="" id="2" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/Gd_zypjbv9E_0000_S276_E419_L751_T18_R1039_B306.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-3">
+          <video poster="" id="3" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/Gd_zypjbv9E_0000_S276_E419_L751_T18_R1039_B306.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-4">
+          <video poster="" id="4" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/GXldrjxDZqQ_0000_S727_E799_L640_T45_R1056_B461.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-5">
+          <video poster="" id="5" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/hQyEUb5DS2o_0000_S412_E492_L555_T19_R843_B307.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-6">
+          <video poster="" id="6" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/KmmMz3NfoU4_0004_S380_E505_L683_T82_R939_B338.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-7">
+          <video poster="" id="7" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/LUolzAltwKI_0000_S963_E1040_L895_T68_R1199_B372.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-8">
+          <video poster="" id="8" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/mFRkTyvuamE_0006_S730_E874_L597_T33_R917_B353.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-9">
+          <video poster="" id="9" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/myaOG-5N12M_0005_S1033_E1156_L659_T50_R1027_B418.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-10">
+          <video poster="" id="10" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/OSrCb8eDWWk_0000_S1403_E1519_L623_T29_R959_B365.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-11">
+          <video poster="" id="11" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/pXg1P_wX79Q_0006_S477_E602_L568_T27_R1048_B507.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-12">
+          <video poster="" id="12" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/sqseuym5HKI_0000_S529_E631_L599_T53_R1111_B565.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-13">
+          <video poster="" id="13" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/UBVzrTJEbS0_0001_S1376_E1470_L760_T55_R1016_B311.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-14">
+          <video poster="" id="14" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/UmA3FpFowh4_0002_S0_E93_L738_T32_R1074_B368.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-15">
+          <video poster="" id="15" autoplay controls muted loop playsinline height="100%">
+            <source src="static/videos/result/dd03Lj8KOjA_0000_S737_E832_L804_T161_R1156_B513.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+
+<section class="section">
+  <div class="container is-max-desktop">
+
+    <div class="columns is-centered">
+
+
+    <!-- Concurrent Work. -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3">Related Links</h2>
+
+        <!-- <div class="content has-text-justified">
+          <p>
+            There's a lot of excellent work that was introduced around the same time as ours.
+          </p>
+          <p>
+            <a href="https://arxiv.org/abs/2104.09125">Progressive Encoding for Neural Optimization</a> introduces an idea similar to our windowed position encoding for coarse-to-fine optimization.
+          </p>
+          <p>
+            <a href="https://www.albertpumarola.com/research/D-NeRF/index.html">D-NeRF</a> and <a href="https://gvv.mpi-inf.mpg.de/projects/nonrigid_nerf/">NR-NeRF</a>
+            both use deformation fields to model non-rigid scenes.
+          </p>
+          <p>
+            Some works model videos with a NeRF by directly modulating the density, such as <a href="https://video-nerf.github.io/">Video-NeRF</a>, <a href="https://www.cs.cornell.edu/~zl548/NSFF/">NSFF</a>, and <a href="https://neural-3d-video.github.io/">DyNeRF</a>
+          </p>
+          <p>
+            There are probably many more by the time you are reading this. Check out <a href="https://dellaert.github.io/NeRF/">Frank Dellart's survey on recent NeRF papers</a>, and <a href="https://github.com/yenchenlin/awesome-NeRF">Yen-Chen Lin's curated list of NeRF papers</a>.
+          </p> -->
+        </div>
+      </div>
+    </div>
+    <!--/ Concurrent Work. -->
+
+  </div>
+</section>
+
+
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <pre><code>@article{sterrgan,
+  author    = {Manh-Khanh Ngo Huu, Vinh Quang Ngo, Vinh Tiep Nguyen},
+  title     = {STERR-GAN: Spatio-temporal Re-rendering for Antique Facial Video Restoration},
+  year      = {2022}
+}</code></pre>
+  </div>
+</section>
+
+
+<footer class="footer">
+  <div class="container">
+    <div class="content has-text-centered">
+      <a class="icon-link"
+         href="./static/videos/nerfies_paper.pdf">
+        <i class="fas fa-file-pdf"></i>
+      </a>
+      <a class="icon-link" href="https://github.com/keunhong" class="external-link" disabled>
+        <i class="fab fa-github"></i>
+      </a>
+    </div>
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <p>
+            This website is licensed under a <a rel="license"
+                                                href="http://creativecommons.org/licenses/by-sa/4.0/">Creative
+            Commons Attribution-ShareAlike 4.0 International License</a>.
+          </p>
+          <p>
+            We build this website based on <a
+              href="https://github.com/nerfies/nerfies.github.io">https://github.com/nerfies/nerfies.github.io</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
