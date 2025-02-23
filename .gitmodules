@@ -1,0 +1,3 @@
+[submodule "GFP-GAN"]
+	path = GFP-GAN
+	url = https://github.com/manhkhanhad/GFP-GAN
